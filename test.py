@@ -2,10 +2,11 @@ import requests
 import base64
 import time
 import os
-from pathlib import Path
+
+import oddtts_config as config
 
 # 配置API基础URL - 调整路径格式
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://" + config.HOST + ":" + str(config.PORT)
 
 # 测试文本
 TEST_TEXT = "Hello! 这是一个API测试。This is an API test. 让我们看看语音合成的效果如何。"
