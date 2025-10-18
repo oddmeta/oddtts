@@ -145,10 +145,10 @@ async def lifespan(app: FastAPI):
 
     type = config.oddtts_cfg["tts_type"]
 
-    print("Loading voices...")
+    # print("Loading voices...")
     voices = await get_voices(type=type)
-    print(voices)
-    print("Voices loaded.")
+    # print(voices)
+    # print("Voices loaded.")
 
     voice_options = [v["name"] for v in voices if v["name"] is not None]
     voice_map = {v["name"]: v for v in voices if v["name"] is not None}
@@ -268,25 +268,3 @@ async def api_tts_stream(request: Request):
 
 # 挂载Gradio界面到/gradio路径
 app = gr.mount_gradio_app(app, create_gradio_interface(), path="/")
-
-if __name__ == "__main__":
-    import signal
-    import sys
-    
-    # Handle signal interrupt (CTRL+C)
-    def signal_handler(sig, frame):
-        print("\nReceived SIGINT (CTRL+C), shutting down...")
-        sys.exit(0)
-    
-    # Register the signal handler
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-
-    # 使用uvicorn直接启动FastAPI应用
-    uvicorn.run(
-        "oddtts:app",  # 指向当前文件的app实例
-        host=config.HOST,
-        port=config.PORT,
-        reload=config.Debug  # 开发模式自动重载
-    )
-
