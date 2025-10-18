@@ -1,6 +1,6 @@
-# OddTTS - 多引擎语音合成服务
+# OddTTS - 多引擎语音合成API封装
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，支持多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2等。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2等。
 
 ## 功能特点
 
@@ -16,30 +16,32 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 - **Web框架**：FastAPI
 - **Web界面**：Gradio
 - **ASGI服务器**：Uvicorn
-- **数据库**：SQLite（默认）
-- **缓存**：Redis（可选）
 - **异步支持**：Python asyncio
 
 ## 安装指南
 
 ### 环境要求
 - Python 3.8+ 
-- 依赖库：fastapi, gradio, uvicorn, requests等
+- 依赖库：fastapi, gradio, uvicorn, requests, edge_tss等
 
 ### 安装步骤
 
 1. 克隆项目代码
 ```bash
-git clone https://github.com/yourusername/oddtts.git
+git clone https://github.com/oddmeta/oddtts.git
 cd oddtts
 ```
 
-2. 安装依赖包
+2. 启动服务
 ```bash
-pip install -r requirements.txt
+python run.py
 ```
 
-3. 配置项目参数（修改 oddtts_config.py）
+在run.py这个启动器里，会自动检查是否已经有安装依赖，若发现依赖缺失，会自动安装。
+
+
+3. [可选]配置项目参数（修改 oddtts_config.py）
+
 ```python
 # 服务器配置
 HOST = \"127.0.0.1\"
@@ -58,19 +60,23 @@ oddtts_cfg = {
 }
 ```
 
-4. 启动服务
+4. [可选]安装依赖包
+如果你不想自动安装依赖，也可以自己先创建一个虚拟环境，然后手动安装依赖。
+
 ```bash
-python oddtts.py
+pip install -r requirements.txt
 ```
+
 
 ## 项目结构
 
 ```
 oddtts/
-├── base_tts_driver.py    # 基础TTS驱动抽象类及实现
-├── oddtts.py             # 主程序入口，包含API和Web界面
+├── oddtts.py             # 主程序入口，启动器
+├── oddtts.py             # 主业务功能代码，包含API和Web界面
 ├── oddtts_config.py      # 配置文件
 ├── oddtts_params.py      # 参数定义和枚举类型
+├── base_tts_driver.py    # 基础TTS驱动抽象类及实现
 ├── tts_bert_vits2.py     # Bert-VITS2引擎实现
 ├── tts_bert_vits2_v2.py  # Bert-VITS2 V2引擎实现
 ├── tts_chattts.py        # ChatTTS引擎实现
