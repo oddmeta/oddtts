@@ -1,207 +1,148 @@
-# OddTTS - 多引擎语音合成API封装
+**Read this in other languages: [English](README.md), [中文](README.chs.md).**
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2等。
+[TOC]
 
-## 功能特点
+# OddTTS - Multi-Engine TTS Voice Synthesis API Wrapper
 
-- **多引擎支持**：集成了EdgeTTS、ChatTTS、Bert-VITS2、Bert-VITS2 V2、OddGptSovits等多种TTS引擎
-- **多种调用方式**：支持文件路径返回、Base64编码返回、流式响应等多种输出方式
-- **友好的Web界面**：基于Gradio提供可视化操作界面
-- **RESTful API**：提供完整的REST API，便于集成到其他系统
-- **可配置性强**：支持GPU加速、并发线程数调整、模型预加载等配置选项
-- **跨平台兼容**：基于Python开发，支持Windows、Linux、macOS等多种操作系统
+OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, ChatTTS, Bert-VITS2, GptSovits, etc.) with a single set of interfaces.
 
-## 技术栈
+## I. Preface
 
-- **Web框架**：FastAPI
-- **Web界面**：Gradio
-- **ASGI服务器**：Uvicorn
-- **异步支持**：Python asyncio
+### 1. About OddTTS
 
-## 安装指南
+I needed TTS functionality for my project **[XiaoLuo Tongxue](https://x.oddmeta.net "XiaoLuo Tongxue")** (Little Luo Classmate). Due to hardware constraints (an Alibaba Cloud ECS server costing 99 yuan/year), I initially could only use EdgeTTS. However, my personal computer has better specifications, so I tried multiple different TTS engines. I needed to create a unified wrapper for these TTS models so that XiaoLuo Tongxue could switch between different TTS engines at any time - thus OddTTS was born.
 
-### 环境要求
-- Python 3.8+ 
-- 依赖库：fastapi, gradio, uvicorn, requests, edge_tss等
+Considering the wide range of applications for TTS functionality, I separated it into an independent project and open-sourced it. I hope it helps students with TTS needs.
 
-### 安装步骤
+<font color=red>**Note: If you want to use TTS engines other than EdgeTTS, you need to install the corresponding TTS engines yourself before installing and using OddTTS.**</font>
 
-1. 克隆项目代码
-```bash
-git clone https://github.com/oddmeta/oddtts.git
-cd oddtts
-```
+### 2. Why Choose OddTTS?
 
-2. 启动服务
-```bash
-python run.py
-```
+- **Multi-engine support**: Integrates EdgeTTS, ChatTTS, Bert-VITS2, OddGptSovits, and other TTS engines
+- **Multiple calling methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods
+- **User-friendly web interface**: Provides a visual operation interface based on Gradio
+- **RESTful API**: Offers a complete REST API for easy integration into other systems
+- **Strong configurability**: Supports GPU acceleration, concurrent thread adjustment, model preloading, and other configuration options
+- **Cross-platform compatibility**: Developed based on Python, supporting Windows, Linux, macOS, and other operating systems
 
-在run.py这个启动器里，会自动检查是否已经有安装依赖，若发现依赖缺失，会自动安装。
+### 3. Recommended Hardware
 
+| Model Name | Original Minimum VRAM | Original Smooth VRAM | Original Full VRAM | INT8 Quantized Minimum VRAM | INT4 Quantized Minimum VRAM | Can Run on Pure CPU | CPU Running Speed |
+|------------|----------|---------|-------|--------|-------|--------------------|------------------|
+| EdgeTTS    | 0GB      | 0GB     | 0GB   | 0GB    | 0GB   | ✅ Yes             | Depends on your network speed |
+| ChatTTS    | 2.5GB    | 4GB     | 6GB+  | 1.5GB  | 1GB   | ✅ Yes             | Fast             |
+| Bert-VITS2 | 5GB      | 6GB     | 8GB+  | 3GB    | 2GB   | ✅ Yes             | Moderate         |
+| GPT-SoVITS v2 | 8GB   | 10GB    | 12GB+ | 4GB    | 2.5GB | ❌ Not recommended | Slow             |
 
-3. [可选]配置项目参数（修改 oddtts_config.py）
+> XiaoLuo Tongxue uses an Alibaba Cloud ECS server costing 99 yuan/year with only 2 cores and 2GB of memory, which can't run any TTS models, so it uses EdgeTTS.
 
-```python
-# 服务器配置
-HOST = \"127.0.0.1\"
-PORT = 9001
-Debug = False
+## II. Quick Start
 
-# TTS配置
-oddtts_cfg = {
-    \"preload_model\": True,
-    \"enable_gpu\": False,
-    \"disable_stream\": False,
-    \"concurrent_thread\": 0,
-    \"tts_type\": ODDTTS_TYPE.ODDTTS_EDGETTS,
-    \"enable_https\": False,
-    # ...
-}
-```
-
-4. [可选]安装依赖包
-如果你不想自动安装依赖，也可以自己先创建一个虚拟环境，然后手动安装依赖。
+### 1. Install OddTTS
 
 ```bash
-pip install -r requirements.txt
+pip install -i https://pypi.org/simple/ oddtts
 ```
 
+### 2. Start OddTTS
 
-## 项目结构
+#### 1. Default Configuration
 
-```
-oddtts/
-├── oddtts.py             # 主程序入口，启动器
-├── oddtts.py             # 主业务功能代码，包含API和Web界面
-├── oddtts_config.py      # 配置文件
-├── oddtts_params.py      # 参数定义和枚举类型
-├── base_tts_driver.py    # 基础TTS驱动抽象类及实现
-├── tts_bert_vits2.py     # Bert-VITS2引擎实现
-├── tts_bert_vits2_v2.py  # Bert-VITS2 V2引擎实现
-├── tts_chattts.py        # ChatTTS引擎实现
-├── tts_edge.py           # EdgeTTS引擎实现
-├── tts_odd_gptsovits.py  # OddGptSovits引擎实现
-└── test.py               # API测试脚本
+Simply execute the following command in the installed virtual environment to start:
+
+```bash
+oddtts
 ```
 
-## API接口文档
+After starting, OddTTS will bind to 127.0.0.1 (local access only) on port 9001 by default. Access it through your browser at: http://localhost:9001
 
-### 1. 健康检查
+#### 2. Custom Configuration
+
+To allow access from other IPs, use the following command to start the service, setting host to 0.0.0.0, and you can also change the port to a custom port.
+
+```bash
+oddtts --host 0.0.0.0 --port 8080
+```
+
+## III. OddTTS API Documentation
+
+### 1. API Interface List
+#### 1) Health Check
 ```
 GET /oddtts/health
 ```
-- **功能**：检查服务是否正常运行
-- **返回**：`{\"status\": \"healthy\", \"message\": \"API服务运行正常\"}`
+- **Function**: Check if the service is running normally
+- **Return**: `{\"status\": \"healthy\", \"message\": \"API service is running normally\"}`
 
-### 2. 获取语音列表
+#### 2) Get Voice List
 ```
 GET /api/oddtts/voices
 ```
-- **功能**：获取当前TTS引擎支持的所有语音
-- **返回**：语音列表，每个语音包含名称、语言、性别等信息
+- **Function**: Get all voices supported by the current TTS engine
+- **Return**: Voice list, each voice contains name, language, gender, etc.
 
-### 3. 获取特定语音详情
+#### 3) Get Specific Voice Details
 ```
 GET /api/oddtts/voices/{voice_name}
 ```
-- **功能**：获取指定语音的详细信息
-- **参数**：`voice_name` - 语音名称
-- **返回**：语音详细信息
+- **Function**: Get detailed information about a specific voice
+- **Parameter**: `voice_name` - Voice name
+- **Return**: Detailed voice information
 
-### 4. 生成TTS音频（返回文件路径）
+#### 4) Generate TTS Audio (Return File Path)
 ```
 POST /api/oddtts/file
 ```
-- **功能**：生成TTS音频并返回文件路径
-- **请求体**：
+- **Function**: Generate TTS audio and return the file path
+- **Request Body**:
   ```json
   {
-    \"text\": \"要转换为语音的文本\",
-    \"voice\": \"语音名称\",
-    \"rate\": 语速调整(-50到50),
-    \"volume\": 音量调整(-50到50),
-    \"pitch\": 音调调整(-50到50)
+    \"text\": \"Text to be converted to speech\",
+    \"voice\": \"Voice name\",
+    \"rate\": Speed adjustment (-50 to 50),
+    \"volume\": Volume adjustment (-50 to 50),
+    \"pitch\": Pitch adjustment (-50 to 50)
   }
   ```
-- **返回**：`{\"status\": \"success\", \"file_path\": \"音频文件路径\", \"format\": \"mp3\"}`
+- **Return**: `{\"status\": \"success\", \"file_path\": \"Audio file path\", \"format\": \"mp3\"}`
 
-### 5. 生成TTS音频（返回Base64）
+#### 5) Generate TTS Audio (Return Base64)
 ```
 POST /api/oddtts/base64
 ```
-- **功能**：生成TTS音频并返回Base64编码
-- **请求体**：同文件路径API
-- **返回**：`{\"status\": \"success\", \"base64\": \"Base64编码的音频数据\", \"format\": \"mp3\"}`
+- **Function**: Generate TTS audio and return Base64 encoding
+- **Request Body**: Same as the file path API
+- **Return**: `{\"status\": \"success\", \"base64\": \"Base64 encoded audio data\", \"format\": \"mp3\"}`
 
-### 6. 生成TTS音频（流式响应）
+#### 6) Generate TTS Audio (Streaming Response)
 ```
 POST /api/oddtts/stream
 ```
-- **功能**：生成TTS音频并以流式响应返回
-- **请求体**：同文件路径API
-- **返回**：流式音频数据（audio/mpeg格式）
+- **Function**: Generate TTS audio and return it as a streaming response
+- **Request Body**: Same as the file path API
+- **Return**: Streaming audio data (audio/mpeg format)
 
-## Web界面使用
+### 2. API Call Example
 
-服务启动后，可以通过浏览器访问 `http://localhost:9001/` 打开Gradio Web界面，支持以下功能：
-
-- 文本输入区域：输入要转换为语音的文本
-- 语音选择：选择不同的语音和语言
-- 参数调整：调整语速、音量、音调等参数
-- 音频生成：点击按钮生成并播放语音
-- 音频下载：下载生成的语音文件
-
-## 配置说明
-
-主要配置项位于 `oddtts_config.py` 文件中：
-
-- **服务器设置**：HOST、PORT、Debug模式
-- **TTS引擎设置**：
-  - `preload_model`: 是否在启动时预加载模型
-  - `enable_gpu`: 是否启用GPU加速
-  - `disable_stream`: 是否禁用流式TTS
-  - `concurrent_thread`: 并发线程数，0表示自动检测CPU核心数
-  - `tts_type`: TTS引擎类型，可选择EdgeTTS、ChatTTS等
-- **HTTPS配置**：enable_https、ssl_cert_path、ssl_key_path
-- **数据库配置**：db_engine、db_name等
-- **Redis配置**：redis_enabled、redis_host等
-- **日志配置**：log_file、log_path、log_level
-
-## 支持的TTS引擎
-
-OddTTS支持以下TTS引擎，可以通过 `tts_type` 配置项选择：
-
-| 引擎类型 | 枚举值 | 说明 |
-|---------|--------|------|
-| EdgeTTS | ODDTTS_TYPE.ODDTTS_EDGETTS | 微软Edge浏览器的TTS引擎，支持多种语言和语音 |
-| ChatTTS | ODDTTS_TYPE.ODDTTS_CHATTTS | 基于最新研究的对话式TTS引擎 |
-| Bert-VITS2 | ODDTTS_TYPE.ODDTTS_BERTVITS2 | 基于BERT和VITS2的开源TTS引擎 |
-| Bert-VITS2 V2 | ODDTTS_TYPE.ODDTTS_BERTVITS2_V2 | Bert-VITS2的改进版本 |
-| OddGptSovits | ODDTTS_TYPE.ODDTTS_GPTSOVITS | 基于GPT和Sovits的TTS引擎 |
-
-## 使用示例
-
-项目提供了 `test.py` 文件作为API调用的示例：
+Here's an example of calling the OddTTS API:
 
 ```python
 import requests
-import oddtts_config as config
 
-# 配置API基础URL
-API_BASE_URL = \"http://\" + config.HOST + \":\" + str(config.PORT)
+# Configure API base URL
+API_BASE_URL = "http://localhost:9001"
 
-# 测试文本
-TEST_TEXT = \"Hello! 这是一个API测试。This is an API test.\"
+# Test text
+TEST_TEXT = \"Hello! This is an API test. 这是一个API测试。\"
 
-# 获取语音列表
+# Get voice list
 def test_api_voices():
     response = requests.get(f\"{API_BASE_URL}/api/oddtts/voices\")
     voices = response.json()
-    print(f\"成功获取 {len(voices)} 个语音选项\")
+    print(f\"Successfully obtained {len(voices)} voice options\")
     return voices
 
-# 测试生成TTS音频
+# Test generating TTS audio
 def test_api_tts_file(voice_name):
     payload = {
         \"text\": TEST_TEXT,
@@ -212,35 +153,36 @@ def test_api_tts_file(voice_name):
     }
     response = requests.post(f\"{API_BASE_URL}/api/oddtts/file\", json=payload)
     result = response.json()
-    print(f\"音频文件路径: {result.get('file_path')}\")
+    print(f\"Audio file path: {result.get('file_path')}\")
 ```
 
-## 常见问题
+## IV. Web Interface Usage
 
-1. **服务启动失败**
-   - 检查端口是否被占用
-   - 确认所有依赖包已正确安装
-   - 查看日志文件获取详细错误信息
+After starting the service, you can access `http://localhost:9001/` through your browser to open the Gradio Web interface, which supports the following functions:
 
-2. **语音合成失败**
-   - 检查TTS引擎配置是否正确
-   - 确认选择的语音存在于当前TTS引擎中
-   - 对于某些需要联网的引擎，确认网络连接正常
+- Text input area: Enter text to be converted to speech
+- Voice selection: Choose different voices and languages
+- Parameter adjustment: Adjust speed, volume, pitch, and other parameters
+- Audio generation: Click the button to generate and play speech
+- Audio download: Download the generated speech file
 
-3. **如何切换TTS引擎**
-   - 修改 `oddtts_config.py` 文件中的 `tts_type` 配置项
-   - 重启服务使配置生效
+## V. Common Issues
 
-## 贡献指南
+1. **Service startup failure**
+   - Check if the port is occupied
+   - Confirm all dependency packages are correctly installed
+   - View the log file for detailed error information
 
-欢迎提交问题和改进建议！如果您想为项目贡献代码，请遵循以下步骤：
+2. **Speech synthesis failure**
+   - Check if the TTS engine configuration is correct
+   - Confirm that the selected voice exists in the current TTS engine
+   - For engines that require internet access, confirm that the network connection is normal
 
-1. Fork 项目仓库
-2. 创建功能分支
-3. 提交代码更改
-4. 推送到远程分支
-5. 创建 Pull Request
+3. **How to switch TTS engines**
+   - Modify the `tts_type` configuration item in the `oddtts_config.py` file
+   - Restart the service for the configuration to take effect
 
-## License
+## VI. License
 
-[MIT License](LICENSE)"},"render":null,"is_truncated":null}}}}]
+The OddTTS project has no license.
+Feel free to copy without any conditions! Just code happily! Contributions and improvement suggestions are also welcome!

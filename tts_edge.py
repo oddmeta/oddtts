@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import edge_tts
 
-from oddtts_params import new_uuid
+from oddtts.oddtts_params import new_uuid
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ import subprocess
 
 # import ChatTTS
 
-from oddtts_params import new_uuid
+from oddtts.oddtts_params import new_uuid
 
 logger = logging.getLogger(__name__)
 

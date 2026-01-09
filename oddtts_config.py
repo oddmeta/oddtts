@@ -1,4 +1,4 @@
-from oddtts_params import ODDTTS_TYPE
+from oddtts.oddtts_params import ODDTTS_TYPE
 
 ## Flask server binding IP & port
 HOST = "127.0.0.1"

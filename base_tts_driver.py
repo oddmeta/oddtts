@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 import logging
 
-from oddtts_params import ODDTTS_TYPE
+from oddtts.oddtts_params import ODDTTS_TYPE
 
-from tts_edge import EdgeTTSAPI
-from tts_bert_vits2 import BertVits2API
-from tts_bert_vits2_v2 import BertVits2V2API
-from tts_odd_gptsovits import OddGptSovitsAPI
-from tts_chattts import ChatTTSAPI
+from oddtts.tts_edge import EdgeTTSAPI
+from oddtts.tts_bert_vits2 import BertVits2API
+from oddtts.tts_bert_vits2_v2 import BertVits2V2API
+from oddtts.tts_odd_gptsovits import OddGptSovitsAPI
+from oddtts.tts_chattts import ChatTTSAPI
 
 logger = logging.getLogger(__name__)
 

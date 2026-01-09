@@ -5,7 +5,7 @@ import uuid
 import requests
 import logging
 
-from oddtts_params import new_uuid
+from oddtts.oddtts_params import new_uuid
 
 logger = logging.getLogger(__name__)
 

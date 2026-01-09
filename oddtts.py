@@ -1,15 +1,15 @@
+# g:\oddmeta\oddtts\oddtts\oddtts.py
 import asyncio
 import gradio as gr
 import os
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request
-import uvicorn
 
-import oddtts_config as config
+import oddtts.oddtts_config as config
 
-from base_tts_driver import OddTTSDriver
-from oddtts_params import ODDTTS_TYPE
+from oddtts.base_tts_driver import OddTTSDriver
+from oddtts.oddtts_params import ODDTTS_TYPE
 
 # Global variables for voice data
 single_tts_driver = OddTTSDriver()
@@ -54,7 +54,7 @@ def create_gradio_interface():
                     text_input = gr.Textbox(label="输入文本", lines=5, placeholder="请输入要转换为语音的文本...")
 
                     voice_locales_select = gr.Dropdown([], label="选择语种", interactive=True)
-                    voice_select = gr.Dropdown([], label="选择语音", interactive=True)
+                    voice_language_select = gr.Dropdown([], label="选择语音", interactive=True)
                     
                     with gr.Row():
                         rate_slider = gr.Slider(-50, 50, 0, step=5, label="语速 (%)")
@@ -76,15 +76,15 @@ def create_gradio_interface():
 
             # 提取唯一的locale并排序
             unique_locales = sorted({v["locale"] for v in voices if v.get("locale") is not None})
-            print(f"加载locale选项: type={type(unique_locales)}, content={unique_locales}")
+            # print(f"加载locale选项: type={type(unique_locales)}, content={unique_locales}")
             return gr.update(choices=unique_locales, value=unique_locales[0] if unique_locales else None)
         
         def load_voices(): 
-            print(f"加载voice选项: type={type(voice_options)}, content={voice_options}")
+            # print(f"加载voice选项: type={type(voice_options)}, content={voice_options}")
             return gr.update(choices=voice_options, value=voice_options[0] if voice_options else None)
 
         # 添加locale筛选语音的事件处理函数
-        def filter_voices_by_locale(selected_locale):
+        def filter_voices_by_locale(selected_locale = "zh-CN"):
             global voice_options, voice_map
             if not selected_locale:  # 如果没有选择locale，返回所有语音
                 filtered_voices = voice_options
@@ -99,13 +99,117 @@ def create_gradio_interface():
                 value=filtered_voices[0] if filtered_voices else None
             )
 
+        # 使用HTML组件注入JavaScript代码，适用于Gradio 6.2.0版本
+        browser_language_js = """
+        <script>
+        // 使用MutationObserver监听DOM变化，确保选择框加载完成
+        const observer = new MutationObserver((mutations, obs) => {
+            // 获取浏览器语言
+            const browserLang = navigator.language || navigator.userLanguage;
+            console.log('Browser language:', browserLang);
+            
+            // 尝试将浏览器语言映射到可用的locale
+            const langMap = {
+                'zh': 'zh-CN',
+                'en': 'en-US',
+                'ja': 'ja-JP',
+                'ko': 'ko-KR',
+                'fr': 'fr-FR',
+                'de': 'de-DE',
+                'es': 'es-ES',
+                'it': 'it-IT'
+            };
+            
+            // 获取主要语言代码
+            const mainLang = browserLang.split('-')[0];
+            let targetLocale = langMap[mainLang];
+            
+            console.log('Target locale:', targetLocale);
+            
+            // 使用更通用的选择器查找选择框
+            let localeSelect = null;
+            
+            // 遍历所有select元素，找到与"选择语种"相关的
+            const selectElements = document.querySelectorAll('select');
+            console.log('Found select elements:', selectElements.length);
+            
+            for (let i = 0; i < selectElements.length; i++) {
+                const select = selectElements[i];
+                // 查看父元素或兄弟元素中是否有"选择语种"的标签
+                const parent = select.parentElement;
+                if (parent) {
+                    const label = parent.querySelector('label');
+                    if (label && label.textContent.includes('选择语种')) {
+                        localeSelect = select;
+                        break;
+                    }
+                }
+            }
+            
+            // 如果没有找到，尝试使用data-testid选择器
+            if (!localeSelect) {
+                localeSelect = document.querySelector('select[data-testid^="dropdown-label"]');
+            }
+            
+            console.log('Found locale select:', localeSelect);
+            
+            if (localeSelect && localeSelect.options.length > 0) {
+                // 查找匹配的选项
+                let foundOption = false;
+                for (let option of localeSelect.options) {
+                    console.log('Option value:', option.value);
+                    if (option.value === targetLocale || option.value.startsWith(mainLang)) {
+                        localeSelect.value = option.value;
+                        // 触发change事件
+                        localeSelect.dispatchEvent(new Event('change'));
+                        console.log('Successfully set locale to:', option.value);
+                        foundOption = true;
+                        break;
+                    }
+                }
+                
+                if (!foundOption) {
+                    console.log('No matching locale found for:', mainLang);
+                    // 如果没有找到匹配的，尝试使用第一个选项
+                    if (localeSelect.options.length > 0) {
+                        localeSelect.value = localeSelect.options[0].value;
+                        localeSelect.dispatchEvent(new Event('change'));
+                        console.log('Set to first available locale:', localeSelect.options[0].value);
+                    }
+                }
+                
+                // 停止观察
+                obs.disconnect();
+            }
+        });
+        
+        // 开始观察DOM变化
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // 5秒后停止观察，防止无限等待
+        setTimeout(() => {
+            observer.disconnect();
+            console.log('Stopped observing DOM changes');
+        }, 5000);
+        </script>
+        """
+        
+        ## 添加HTML组件来注入JavaScript代码
+        # gr.HTML(browser_language_js)
+        
+        # 加载locale和voice选项
         demo.load(load_locales, None, [voice_locales_select])
-        demo.load(load_voices, None, [voice_select])
+        demo.load(load_voices, None, [voice_language_select])
+
+        print("配置完成，开始运行...")
 
         voice_locales_select.change(
             fn=filter_voices_by_locale,
             inputs=[voice_locales_select],
-            outputs=[voice_select]
+            outputs=[voice_language_select]
         )
 
         # 生成语音按钮点击事件
@@ -116,7 +220,7 @@ def create_gradio_interface():
         
         generate_btn.click(
             fn=generate_audio,
-            inputs=[text_input, voice_select, rate_slider, volume_slider, pitch_slider],
+            inputs=[text_input, voice_language_select, rate_slider, volume_slider, pitch_slider],
             outputs=[last_audio_path, audio_output]
         )
         
@@ -267,4 +371,4 @@ async def api_tts_stream(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 # 挂载Gradio界面到/gradio路径
-app = gr.mount_gradio_app(app, create_gradio_interface(), path="/")
+gr.mount_gradio_app(app, create_gradio_interface(), path="/")
