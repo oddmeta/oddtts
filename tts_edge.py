@@ -134,7 +134,7 @@ class EdgeTTSAPI():
             open(filePath, 'a').close()
 
         if voiceId == "":
-            voiceId = "zh-HK-WanLungNeural";
+            voiceId = "zh-HK-WanLungNeural"
             print(f"using default voice: {voiceId}")
 
         try:

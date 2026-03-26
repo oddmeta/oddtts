@@ -17,6 +17,7 @@ single_tts_driver = OddTTSDriver()
 voices = []
 voice_map = {}
 voice_options = []
+voice_short_names = []
 
 # 获取所有可用语音 - 修复KeyError问题
 async def get_voices(type: ODDTTS_TYPE):
@@ -278,24 +279,35 @@ def health_check():
     return {"status": "healthy", "message": "API服务运行正常"}
 
 # 1. 获取语音列表API
-@app.get("/api/oddtts/voices")
+@app.get("/v1/audio/voice/list")
 async def api_get_voices():
     """获取所有可用的语音列表"""
     type = config.oddtts_cfg["tts_type"]
     return await get_voices(type=type)
     
 # 2. 获取特定语音详情API
-@app.get("/api/oddtts/voices/{voice_name}")
-def api_get_voice_details(voice_name: str):
+@app.get("/v1/audio/voice/list/{voice_name}")
+async def api_get_voice_details(voice_name: str):
     """获取特定语音的详细信息"""
-    if voice_name in voice_map:
-        return voice_map[voice_name]
+    global voices
+
+    # 如果voices还没有加载，动态加载语音列表
+    if not voices:
+        type = config.oddtts_cfg["tts_type"]
+        voices = await get_voices(type=type)
+
+    for i, item in enumerate(voices):
+        if item["short_name"] == voice_name:
+            return item
+
     return {"error": f"Voice '{voice_name}' not found"}, 404
     
 # 3. TTS生成API - 返回文件路径
 @app.post("/api/oddtts/file")
 async def api_tts_file(request: Request):
     """生成TTS音频并返回文件路径"""
+    global voices
+
     data = await request.json()
     text = data.get("text")
     voice = data.get("voice")
@@ -303,16 +315,25 @@ async def api_tts_file(request: Request):
     volume = data.get("volume", 0)
     pitch = data.get("pitch", 0)
     
+    # 如果voices还没有加载，动态加载语音列表
+    if not voices:
+        type = config.oddtts_cfg["tts_type"]
+        voices = await get_voices(type=type)
+
     # 如果未指定语音，使用第一个可用语音
-    if not voice and voice_options:
-        voice = voice_options[0]
+    found_voice = False
+    for i, item in enumerate(voices):
+        if item["short_name"] == voice:
+            found_voice = True
+            break
     
-    if not voice or voice not in voice_map:
+    if not found_voice:
         return {"error": f"Voice '{voice}' not found"}, 404
 
     type = config.oddtts_cfg["tts_type"]
     try:
         audio_path = await generate_tts_file(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
+        print(f"TTS生成成功: {audio_path}")
         return {"status": "success", "file_path": audio_path, "format": "mp3"}
     except Exception as e:
         return {"error": str(e)}, 500
@@ -321,6 +342,8 @@ async def api_tts_file(request: Request):
 @app.post("/api/oddtts/base64")
 async def api_tts_base64(request: Request):
     """生成TTS音频并返回Base64编码"""
+    global voices
+
     data = await request.json()
 
     type = config.oddtts_cfg["tts_type"]
@@ -329,12 +352,20 @@ async def api_tts_base64(request: Request):
     rate = data.get("rate", 0)
     volume = data.get("volume", 0)
     pitch = data.get("pitch", 0)
-    
+
+    # 如果voices还没有加载，动态加载语音列表
+    if not voices:
+        type = config.oddtts_cfg["tts_type"]
+        voices = await get_voices(type=type)
+
     # 如果未指定语音，使用第一个可用语音
-    if not voice and voice_options:
-        voice = voice_options[0]
-        
-    if not voice or voice not in voice_map:
+    found_voice = False
+    for i, item in enumerate(voices):
+        if item["short_name"] == voice:
+            found_voice = True
+            break
+    
+    if not found_voice:
         return {"error": f"Voice '{voice}' not found"}, 404
     
     try:
@@ -349,6 +380,8 @@ async def api_tts_base64(request: Request):
 @app.post("/api/oddtts/stream")
 async def api_tts_stream(request: Request):
     """生成TTS音频并以流式响应返回"""
+    global voices
+
     data = await request.json()
 
     type = config.oddtts_cfg["tts_type"]
@@ -358,17 +391,128 @@ async def api_tts_stream(request: Request):
     volume = data.get("volume", 0)
     pitch = data.get("pitch", 0)
     
-    # 如果未指定语音，使用第一个可用语音
-    if not voice and voice_options:
-        voice = voice_options[0]
+    # 如果voices还没有加载，动态加载语音列表
+    if not voices:
+        type = config.oddtts_cfg["tts_type"]
+        voices = await get_voices(type=type)
 
-    if not voice or voice not in voice_map:
-        return JSONResponse({"error": f"Voice '{voice}' not found"}, status_code=404)
+    # 如果未指定语音，使用第一个可用语音
+    found_voice = False
+    for i, item in enumerate(voices):
+        if item["short_name"] == voice:
+            found_voice = True
+            break
+    
+    if not found_voice:
+        return {"error": f"Voice '{voice}' not found"}, 404
         
     try:
         return StreamingResponse(generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch), media_type="audio/mpeg")
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# OpenAI兼容API端点
+@app.get("/v1/models")
+async def openai_list_models():
+    """OpenAI兼容 - 获取可用模型列表"""
+    type = config.oddtts_cfg["tts_type"]
+    voice_list = await get_voices(type=type)
+    models = []
+    for v in voice_list:
+        if v.get("name"):
+            models.append({
+                "id": v["name"],
+                "object": "model",
+                "created": 1700000000,
+                "owned_by": "oddtts",
+                "permission": [],
+                "root": v["name"],
+                "parent": None
+            })
+    
+    return {
+        "object": "list",
+        "data": models,
+        "model": type.value if hasattr(type, 'value') else str(type)
+    }
+
+@app.post("/v1/audio/speech")
+async def openai_create_speech(request: Request):
+    """OpenAI兼容 - 生成语音
+    支持的请求参数:
+    - input: 要转换的文本 (必需)
+    - voice: 语音角色 (可选，默认第一个)
+    - speed: 语速 0.25-4.0 (可选，默认1.0)
+    - response_format: 返回格式 mp3/wav (可选，默认mp3)
+    - model: 模型名称 (可选，目前忽略)
+    """
+    global voices
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "请求必须是JSON格式"}, status_code=400)
+    
+    text = data.get("input")
+    if not text:
+        return JSONResponse({"error": "缺少必需参数: input"}, status_code=400)
+    
+    voice = data.get("voice")
+    speed = data.get("speed", 1.0)
+    response_format = data.get("response_format", "mp3")
+    
+    if speed < 0.25 or speed > 4.0:
+        return JSONResponse({"error": "speed参数必须在0.25-4.0之间"}, status_code=400)
+
+    # 如果voices还没有加载，动态加载语音列表
+    if not voices:
+        type = config.oddtts_cfg["tts_type"]
+        voices = await get_voices(type=type)
+
+    '''
+    1. 名称: Microsoft Server Speech Text to Speech Voice (af-ZA, AdriNeural)
+       语言: af-ZA
+       性别: Female
+       语音ID: af-ZA-AdriNeural
+
+    2. 名称: Microsoft Server Speech Text to Speech Voice (af-ZA, WillemNeural)
+       语言: af-ZA
+       性别: Male
+    {
+    'Microsoft Server Speech Text to Speech Voice (af-ZA, AdriNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (af-ZA, AdriNeural)', 'gender': 'Female', 'locale': 'af-ZA', 'short_name': 'af-ZA-AdriNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (af-ZA, WillemNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (af-ZA, WillemNeural)', 'gender': 'Male', 'locale': 'af-ZA', 'short_name': 'af-ZA-WillemNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (sq-AL, AnilaNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (sq-AL, AnilaNeural)', 'gender': 'Female', 'locale': 'sq-AL', 'short_name': 'sq-AL-AnilaNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (sq-AL, IlirNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (sq-AL, IlirNeural)', 'gender': 'Male', 'locale': 'sq-AL', 'short_name': 'sq-AL-IlirNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (am-ET, AmehaNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (am-ET, AmehaNeural)', 'gender': 'Male', 'locale': 'am-ET', 'short_name': 'am-ET-AmehaNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (am-ET, MekdesNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (am-ET, MekdesNeural)', 'gender': 'Female', 'locale': 'am-ET', 'short_name': 'am-ET-MekdesNeural'}, 
+    'Microsoft Server Speech Text to Speech Voice (ar-DZ, AminaNeural)': {'name': 'Microsoft Server Speech Text to Speech Voice (ar-DZ, AminaNeural)', 'gender': 'Female', 'locale': 'ar-DZ', 'short_name': 'ar-DZ-AminaNeural'}
+    }
+    '''
+    found_voice = False
+    for i, item in enumerate(voices):
+        if (item.get("short_name") == voice):
+            found_voice = True
+            break
+ 
+    if not found_voice:
+        print(f"请求语音: {voice}, 但是没找到，将使用默认语音")
+        voice = "zh-HK-WanLungNeural"
+        voice = "zh-CN-YunxiaNeural"
+        # return JSONResponse({"error": f"Voice '{voice}' not found"}, status_code=404)
+    
+    rate = int((speed - 1.0) * 50)
+    type = config.oddtts_cfg["tts_type"]
+    
+    try:
+        return StreamingResponse(
+            generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=0, pitch=0),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": f"attachment; filename=speech.{response_format}"
+            }
+        )
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 # 挂载Gradio界面到/gradio路径
-gr.mount_gradio_app(app, create_gradio_interface(), path="/")
+gr.mount_gradio_app(app, create_gradio_interface(), path="/gradio")

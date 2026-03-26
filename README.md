@@ -2,9 +2,9 @@
 
 [TOC]
 
-# OddTTS - Multi-Engine TTS Voice Synthesis API Wrapper
+# OddTTS - Multi-Engine TTS Voice Synthesis API Wrapper (with OpenAI TTS API compatibility)
 
-OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, ChatTTS, Bert-VITS2, GptSovits, etc.) with a single set of interfaces.
+OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, ChatTTS, Bert-VITS2, GptSovits, etc.) with a single set of interfaces, and also with OpenAI TTS API compatibility.
 
 ## I. Preface
 
@@ -67,32 +67,40 @@ oddtts --host 0.0.0.0 --port 8080
 ## III. OddTTS API Documentation
 
 ### 1. API Interface List
-#### 1) Health Check
+
+#### 1) OpenAI TTS API Compatibility
+
 ```
-GET /oddtts/health
+GET /v1/audio/speech
 ```
-- **Function**: Check if the service is running normally
-- **Return**: `{\"status\": \"healthy\", \"message\": \"API service is running normally\"}`
+
+- **Function**: OpenAI TTS API compatibility, details see [OpenAI TTS API](https://platform.openai.com/docs/api-reference/audio/create).
+- **Return**: mp3 audio data.
 
 #### 2) Get Voice List
+
 ```
-GET /api/oddtts/voices
+GET /v1/audio/voice/list
 ```
 - **Function**: Get all voices supported by the current TTS engine
 - **Return**: Voice list, each voice contains name, language, gender, etc.
 
 #### 3) Get Specific Voice Details
+
 ```
-GET /api/oddtts/voices/{voice_name}
+GET /v1/audio/voice/list/{voice_name}
 ```
+
 - **Function**: Get detailed information about a specific voice
 - **Parameter**: `voice_name` - Voice name
 - **Return**: Detailed voice information
 
 #### 4) Generate TTS Audio (Return File Path)
+
 ```
 POST /api/oddtts/file
 ```
+
 - **Function**: Generate TTS audio and return the file path
 - **Request Body**:
   ```json
@@ -107,24 +115,71 @@ POST /api/oddtts/file
 - **Return**: `{\"status\": \"success\", \"file_path\": \"Audio file path\", \"format\": \"mp3\"}`
 
 #### 5) Generate TTS Audio (Return Base64)
+
 ```
 POST /api/oddtts/base64
 ```
+
 - **Function**: Generate TTS audio and return Base64 encoding
 - **Request Body**: Same as the file path API
 - **Return**: `{\"status\": \"success\", \"base64\": \"Base64 encoded audio data\", \"format\": \"mp3\"}`
 
 #### 6) Generate TTS Audio (Streaming Response)
+
 ```
 POST /api/oddtts/stream
 ```
+
 - **Function**: Generate TTS audio and return it as a streaming response
 - **Request Body**: Same as the file path API
 - **Return**: Streaming audio data (audio/mpeg format)
 
+#### 7) Health Check
+
+```
+GET /oddtts/health
+```
+
+- **Function**: Check if the service is running normally
+- **Return**: `{\"status\": \"healthy\", \"message\": \"API service is running normally\"}`
+
 ### 2. API Call Example
 
 Here's an example of calling the OddTTS API:
+
+
+#### 1）OpenAI TTS API Compatibility
+
+```
+from openai import OpenAI
+
+base_url = "http://localhost:9001/v1"
+model = "oddtts-1"
+api_key = "dummy"
+voice = "zh-CN-XiaoyiNeural"
+
+text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
+
+def test_openai_tts_api(voice_id):
+    client = OpenAI(
+        api_key=api_key,
+        base_url=base_url
+    )
+
+    response = client.audio.speech.create(
+        model=model,
+        input=text,
+        voice=voice_id,
+        response_format="mp3"
+    )
+    response.write_to_file("output.mp3")
+
+if __name__ == "__main__":
+    test_openai_tts_api(voice)
+
+```
+
+#### 2) API Call Example
 
 ```python
 import requests
@@ -137,7 +192,7 @@ TEST_TEXT = \"Hello! This is an API test. 这是一个API测试。\"
 
 # Get voice list
 def test_api_voices():
-    response = requests.get(f\"{API_BASE_URL}/api/oddtts/voices\")
+    response = requests.get(f\"{API_BASE_URL}/v1/audio/voice/list\")
     voices = response.json()
     print(f\"Successfully obtained {len(voices)} voice options\")
     return voices

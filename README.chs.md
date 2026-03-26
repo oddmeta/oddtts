@@ -2,9 +2,9 @@
 
 [TOC]
 
-# OddTTS - 多引擎TTS语音合成API封装
+# OddTTS - 多引擎TTS语音合成API封装(兼容OpenAI TTS API)
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2、GptSovits等。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2、GptSovits等，同时也支持OpenAI TTS API的调用。
 
 ## 一、前言
 
@@ -67,32 +67,41 @@ oddtts --host 0.0.0.0 --port 8080
 ## 三、OddTTS API接口文档
 
 ### 1. API接口列表
-#### 1）健康检查
+
+#### 1) OpenAI API 兼容接口
+
 ```
-GET /oddtts/health
+GET /v1/audio/speech
 ```
-- **功能**：检查服务是否正常运行
-- **返回**：`{\"status\": \"healthy\", \"message\": \"API服务运行正常\"}`
+
+- **Function**: OpenAI TTS API 兼容接口, details see [OpenAI TTS API](https://platform.openai.com/docs/api-reference/audio/create).
+- **Return**: mp3 audio data.
 
 #### 2）获取语音列表
+
 ```
-GET /api/oddtts/voices
+GET /v1/audio/voice/list
 ```
+
 - **功能**：获取当前TTS引擎支持的所有语音
 - **返回**：语音列表，每个语音包含名称、语言、性别等信息
 
 #### 3）获取特定语音详情
+
 ```
-GET /api/oddtts/voices/{voice_name}
+GET /v1/audio/voice/list/{voice_name}
 ```
+
 - **功能**：获取指定语音的详细信息
 - **参数**：`voice_name` - 语音名称
 - **返回**：语音详细信息
 
 #### 4）生成TTS音频（返回文件路径）
+
 ```
 POST /api/oddtts/file
 ```
+
 - **功能**：生成TTS音频并返回文件路径
 - **请求体**：
   ```json
@@ -107,24 +116,71 @@ POST /api/oddtts/file
 - **返回**：`{\"status\": \"success\", \"file_path\": \"音频文件路径\", \"format\": \"mp3\"}`
 
 #### 5）生成TTS音频（返回Base64）
+
 ```
 POST /api/oddtts/base64
 ```
+
 - **功能**：生成TTS音频并返回Base64编码
 - **请求体**：同文件路径API
 - **返回**：`{\"status\": \"success\", \"base64\": \"Base64编码的音频数据\", \"format\": \"mp3\"}`
 
 #### 6）生成TTS音频（流式响应）
+
 ```
 POST /api/oddtts/stream
 ```
+
 - **功能**：生成TTS音频并以流式响应返回
 - **请求体**：同文件路径API
 - **返回**：流式音频数据（audio/mpeg格式）
 
+#### 7）健康检查
+
+```
+GET /oddtts/health
+```
+
+- **功能**：检查服务是否正常运行
+- **返回**：`{\"status\": \"healthy\", \"message\": \"API服务运行正常\"}`
+
+
 ### 2. API调用示例
 
 以下是一个OddTTS的API调用的示例：
+
+#### 1）OpenAI 兼容接口
+
+```
+from openai import OpenAI
+
+base_url = "http://localhost:9001/v1"
+model = "oddtts-1"
+api_key = "dummy"
+voice = "zh-CN-XiaoyiNeural"
+
+text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
+
+def test_openai_tts_api(voice_id):
+    client = OpenAI(
+        api_key=api_key,
+        base_url=base_url
+    )
+
+    response = client.audio.speech.create(
+        model=model,
+        input=text,
+        voice=voice_id,
+        response_format="mp3"
+    )
+    response.write_to_file("output.mp3")
+
+if __name__ == "__main__":
+    test_openai_tts_api(voice)
+
+```
+
+#### 2）使用requests库调用API
 
 ```python
 import requests
@@ -137,7 +193,7 @@ TEST_TEXT = \"Hello! 这是一个API测试。This is an API test.\"
 
 # 获取语音列表
 def test_api_voices():
-    response = requests.get(f\"{API_BASE_URL}/api/oddtts/voices\")
+    response = requests.get(f\"{API_BASE_URL}/v1/audio/voice/list\")
     voices = response.json()
     print(f\"成功获取 {len(voices)} 个语音选项\")
     return voices

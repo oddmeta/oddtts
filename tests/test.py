@@ -9,17 +9,17 @@ import oddtts.oddtts_config as config
 API_BASE_URL = "http://" + config.HOST + ":" + str(config.PORT)
 
 # 测试文本
-TEST_TEXT = "Hello! 这是一个API测试。This is an API test. 让我们看看语音合成的效果如何。"
+TEST_TEXT = "Hello! 欢迎关注我的公众号：奥德元。一起学习AI，一起追赶时代。"
 
 def test_api_voices():
     """测试获取语音列表API"""
     print("="*50)
-    print("测试: 获取语音列表 API (/api/oddtts/voices)")
+    print("测试: 获取语音列表 API (/v1/audio/voice/list)")
     
     try:
         # 明确指定完整URL
-        response = requests.get(f"{API_BASE_URL}/api/oddtts/voices")
-        print(f"请求URL: {API_BASE_URL}/api/oddtts/voices")
+        response = requests.get(f"{API_BASE_URL}/v1/audio/voice/list")
+        print(f"请求URL: {API_BASE_URL}/v1/audio/voice/list")
         print(f"响应状态码: {response.status_code}")
         
         response.raise_for_status()
@@ -32,7 +32,8 @@ def test_api_voices():
         for i, voice in enumerate(voices[:5]):
             print(f"{i+1}. 名称: {voice.get('name')}")
             print(f"   语言: {voice.get('locale')}")
-            print(f"   性别: {voice.get('gender')}\n")
+            print(f"   性别: {voice.get('gender')}")
+            print(f"   语音ID: {voice.get('short_name')}\n")
         
         return voices
     
@@ -57,16 +58,14 @@ def test_api_voices():
 def test_api_voice_details(voice_name):
     """测试获取特定语音详情API"""
     print("="*50)
-    print(f"测试: 获取特定语音详情 API (/api/oddtts/voices/{voice_name})")
+    print(f"测试: 获取特定语音详情 API (/v1/audio/voice/list/{voice_name})")
     
     try:
-        response = requests.get(f"{API_BASE_URL}/api/oddtts/voices/{voice_name}")
+        response = requests.get(f"{API_BASE_URL}/v1/audio/voice/list/{voice_name}")
         response.raise_for_status()
         
         voice_details = response.json()
-        print("语音详情:")
-        for key, value in voice_details.items():
-            print(f"   {key}: {value}")
+        print(f"语音详情: {voice_details}")
         
         return True
     
@@ -100,7 +99,7 @@ def test_api_tts_file(voice_name):
         end_time = time.time()
         
         result = response.json()
-        print(f"生成成功，耗时: {end_time - start_time:.2f}秒")
+        print(f"生成成功，耗时: {end_time - start_time:.2f}秒. result:{result}")
         print(f"文件路径: {result.get('file_path')}")
         print(f"状态: {result.get('status')}")
         
@@ -219,17 +218,17 @@ def main():
     for voice in voices:
         locale = voice.get('locale', '')
         if not english_voice and 'en-' in locale:
-            english_voice = voice.get('name')
+            english_voice = voice.get('short_name')
         if not chinese_voice and 'zh-' in locale:
-            chinese_voice = voice.get('name')
+            chinese_voice = voice.get('short_name')
         
         if english_voice and chinese_voice:
             break
     
     if not english_voice:
-        english_voice = voices[0].get('name') if voices else None
+        english_voice = voices[0].get('short_name') if voices else None
     if not chinese_voice:
-        chinese_voice = voices[1].get('name') if len(voices) > 1 else english_voice
+        chinese_voice = voices[1].get('short_name') if len(voices) > 1 else english_voice
     
     print(f"\n将使用以下语音进行测试:")
     print(f"英文语音: {english_voice}")

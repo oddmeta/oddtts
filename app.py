@@ -4,6 +4,7 @@ import sys
 import subprocess
 import importlib.util
 import argparse
+import signal
 
 def install_required_packages():
     required_packages = [
@@ -59,12 +60,13 @@ O   O  d   d  d   d  M   M  e        t    a     a
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
         
-        # 使用直接导入的app对象
+        # 使用直接导入的app对象，添加优雅关闭配置
         uvicorn.run(
             app,
             host=host,
             port=port,
-            reload=config.Debug
+            reload=config.Debug,
+            timeout_graceful_shutdown=5,  # 设置优雅关闭超时时间为5秒
         )
     except Exception as e:
         print(f"Failed to start application: {e}")
