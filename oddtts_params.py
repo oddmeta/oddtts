@@ -22,6 +22,8 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_BERTVITS2 = 4
     # Bert Vits2 v2
     ODDTTS_BERTVITS2_V2 = 5
+    # Kokoro
+    ODDTTS_KOKORO = 6
 
     def __str__(self):
         return self.name.title()

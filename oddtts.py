@@ -12,7 +12,7 @@ from oddtts.base_tts_driver import OddTTSDriver
 from oddtts.oddtts_params import ODDTTS_TYPE
 
 # Global variables for voice data
-single_tts_driver = OddTTSDriver()
+single_tts_driver = OddTTSDriver(config.oddtts_cfg['tts_type'])
 
 voices = []
 voice_map = {}
@@ -69,17 +69,28 @@ def create_gradio_interface():
                     download_btn = gr.Button("下载音频")
 
         # 添加界面加载事件，动态获取语音列表
-        async def load_locales():
+        # 添加界面加载事件，动态获取语音列表
+        # 添加界面加载事件，动态获取语音列表
+        def load_locales():
             global voices
-            # 等待voices数据加载完成
+
+            # 等待voices数据加载完成（使用简单的轮询）
+            import time
+            timeout = 10  # 10秒超时
+            start_time = time.time()
             while not voices:
-                await asyncio.sleep(0.1)
+                if time.time() - start_time > timeout:
+                    print("警告：等待 voices 数据加载超时")
+                    return gr.update(choices=[], value=None)
+                time.sleep(0.1)
+
+            print(f"加载voice选项: type={type(voices)}, content={voices}")
 
             # 提取唯一的locale并排序
             unique_locales = sorted({v["locale"] for v in voices if v.get("locale") is not None})
             # print(f"加载locale选项: type={type(unique_locales)}, content={unique_locales}")
             return gr.update(choices=unique_locales, value=unique_locales[0] if unique_locales else None)
-        
+
         def load_voices(): 
             # print(f"加载voice选项: type={type(voice_options)}, content={voice_options}")
             return gr.update(choices=voice_options, value=voice_options[0] if voice_options else None)
@@ -87,6 +98,12 @@ def create_gradio_interface():
         # 添加locale筛选语音的事件处理函数
         def filter_voices_by_locale(selected_locale = "zh-CN"):
             global voice_options, voice_map
+
+            if not voice_options:
+                voice_options = [v["name"] for v in voices if v["name"] is not None]
+            if not voice_map:  # 如果voice_map为空，则初始化voice_map
+                voice_map = {v["name"]: v for v in voices if v["name"] is not None}
+
             if not selected_locale:  # 如果没有选择locale，返回所有语音
                 filtered_voices = voice_options
             else:  # 根据选中的locale筛选语音
@@ -246,21 +263,21 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup - 加载语音列表
-    global voices, voice_options, voice_map
+    global voices, voice_map, voice_options
 
     type = config.oddtts_cfg["tts_type"]
 
     # print("Loading voices...")
     voices = await get_voices(type=type)
-    # print(voices)
+    print(voices)
     # print("Voices loaded.")
 
-    voice_options = [v["name"] for v in voices if v["name"] is not None]
+    # 初始化 voice_map 和 voice_options
     voice_map = {v["name"]: v for v in voices if v["name"] is not None}
+    voice_options = [v["name"] for v in voices if v["name"] is not None]
      
     yield
-    # Shutdown - 可选的清理代码
-    pass
+
 
 app = FastAPI(title="OddTTS API Service", lifespan=lifespan)
 

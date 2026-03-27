@@ -8,30 +8,12 @@ from oddtts.oddtts_params import new_uuid
 
 logger = logging.getLogger(__name__)
 
-TTS_edge_voices = [
-    {"id": "zh-CN-XiaoxiaoNeural", "name": "xiaoxiao"},
-    {"id": "zh-CN-XiaoyiNeural", "name": "xiaoyi"},
-    {"id": "zh-CN-YunjianNeural", "name": "yunjian"},
-    {"id": "zh-CN-YunxiNeural", "name": "yunxi"},
-    {"id": "zh-CN-YunxiaNeural", "name": "yunxia"},
-    {"id": "zh-CN-YunyangNeural", "name": "yunyang"},
-    {"id": "zh-CN-liaoning-XiaobeiNeural", "name": "xiaobei"},
-    {"id": "zh-CN-shaanxi-XiaoniNeural", "name": "xiaoni"},
-    {"id": "zh-HK-HiuGaaiNeural", "name": "hiugaai"},
-    {"id": "zh-HK-HiuMaanNeural", "name": "hiumaan"},
-    {"id": "zh-HK-WanLungNeural", "name": "wanlung"},
-    {"id": "zh-TW-HsiaoChenNeural", "name": "hsiaochen"},
-    {"id": "zh-TW-HsiaoYuNeural", "name": "hsioayu"},
-    {"id": "zh-TW-YunJheNeural", "name": "yunjhe"}
-]
-
 class EdgeTTSAPI():
 
     def __init__(self) -> None:
         pass
     
     async def get_voices(self) -> list[dict[str, str]]:
-        # return TTS_edge_voices
         voice_list = []
         voices = await edge_tts.list_voices()
         for v in voices:

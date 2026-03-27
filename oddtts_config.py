@@ -17,7 +17,7 @@ oddtts_cfg = {
     ## concurrent threads, 0 auto detect CPU cores
     "concurrent_thread": 0,
     ## tts type
-    "tts_type": ODDTTS_TYPE.ODDTTS_EDGETTS,
+    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO,
     ## HTTPS configuration
     "enable_https": False,
     "ssl_cert_path": "scripts/cert.pem",

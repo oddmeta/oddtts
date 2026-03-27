@@ -8,40 +8,39 @@ from oddtts.tts_bert_vits2 import BertVits2API
 from oddtts.tts_bert_vits2_v2 import BertVits2V2API
 from oddtts.tts_odd_gptsovits import OddGptSovitsAPI
 from oddtts.tts_chattts import ChatTTSAPI
+from oddtts.tts_kokoro import KokoroAPI
 
 logger = logging.getLogger(__name__)
 
 class BaseTTS(ABC):
     '''合成语音统一抽象类'''
-    @abstractmethod
+
+    def __init__(self) -> None:
+        self.client = None
+
     async def get_voices(self) -> list[dict[str, str]]:
-        '''获取声音列表'''
-        pass
+        return await self.client.get_voices()
 
     @abstractmethod
     async def synthesis(self, text: str, voice_id: str, **kwargs) -> str:
         '''合成语音'''
         pass
 
-    @abstractmethod
     async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
         '''生成语音文件'''
-        pass
+        return await self.client.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
 
-    @abstractmethod
     async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
         '''生成TTS音频并返回字节流'''
-        pass
+        return await self.client.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
 
-    @abstractmethod
     async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
         '''生成TTS音频并返回字节流'''
-        pass
+        async for chunk in self.client.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
+            yield chunk
 
 class OddTTSEdge(BaseTTS):
     '''Edge 微软语音合成类'''
-    async def get_voices(self) -> list[dict[str, str]]:
-        return await self.client.get_voices()
     
     def __init__(self) -> None:
         self.client = EdgeTTSAPI()
@@ -49,36 +48,13 @@ class OddTTSEdge(BaseTTS):
     async def synthesis(self, text: str, voice_id: str, **kwargs) -> str:
         return await EdgeTTSAPI.create_audio(text=text, voiceId=voice_id)
 
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        return await self.client.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        return await self.client.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-    
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
-        async for chunk in self.client.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
-            yield chunk
-
 class OddTTSChatTTS(BaseTTS):
     '''Chattts语音合成类'''
     def __init__(self) -> None:
         self.client = ChatTTSAPI()
 
-    async def get_voices(self) -> list[dict[str, str]]:
-        return await self.client.get_voices()
-
     async def synthesis(self, text: str, voice_id: str, **kwargs) -> str:
-        return await ChatTTSAPI.create_audio(text=text, voiceId=voice_id)
-
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        return ChatTTSAPI.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        return ChatTTSAPI.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-    
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
-        async for chunk in self.client.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
-            yield chunk
+        return await self.client.create_audio(text=text, voiceId=voice_id)
 
 class OddTTSBertVits2(BaseTTS):
     '''Bert-VITS2 语音合成类'''
@@ -93,19 +69,6 @@ class OddTTSBertVits2(BaseTTS):
         sdp_ratio = kwargs.get("sdp_ratio", "0.2")
         return await self.client.do_synthesis(text=text, speaker=voice_id, noise=noise, noisew=noisew, sdp_ratio=sdp_ratio)
 
-    async def get_voices(self) -> list[dict[str, str]]:
-        return self.client.get_voices()
-
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        return self.client.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        return self.client.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-    
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
-        async for chunk in self.client.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
-            yield chunk
-
 class OddTTSBertVITS2V2(BaseTTS):
     '''Bert-VITS2 语音合成类'''
     client: BertVits2V2API
@@ -118,19 +81,6 @@ class OddTTSBertVITS2V2(BaseTTS):
         sdp_ratio = kwargs.get("sdp_ratio", "0.2")
         return await self.client.generate_audio(text=text, speaker=voice_id, noise=noise, noisew=noisew, sdp_ratio=sdp_ratio)
 
-    async def get_voices(self) -> list[dict[str, str]]:
-        return self.client.get_voices()
-
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        return self.client.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        return self.client.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
-    
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
-        async for chunk in self.client.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
-            yield chunk
-
 class OddTTSGPTSovits(BaseTTS):
     client: OddGptSovitsAPI
 
@@ -141,47 +91,55 @@ class OddTTSGPTSovits(BaseTTS):
         noise = kwargs.get("noise", "0.5")
         noisew = kwargs.get("noisew", "0.9")
         sdp_ratio = kwargs.get("sdp_ratio", "0.2")
-        return self.client.create_audio(text=text, speaker=voice_id, noise=noise, noisew=noisew, sdp_ratio=sdp_ratio)
+        return await self.client.create_audio(text=text, speaker=voice_id, noise=noise, noisew=noisew, sdp_ratio=sdp_ratio)
 
-    async def get_voices(self) -> list[dict[str, str]]:
-        return self.client.get_voices()
+class OddTTSKokoro(BaseTTS):
+    '''Kokoro 语音合成类'''
+    client: KokoroAPI
+    def __init__(self):
+        self.client = KokoroAPI()
 
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        return self.client.generate_tts_file(text=text, voiceId=voice, rate=rate, volume=volume, pitch=pitch)
-
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        return self.client.generate_tts_bytes(text=text, voiceId=voice, rate=rate, volume=volume, pitch=pitch)
-    
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int):
-        async for chunk in self.client.generate_tts_stream(text=text, voiceId=voice, rate=rate, volume=volume, pitch=pitch):
-            yield chunk
+    async def synthesis(self, text: str, voice_id: str, **kwargs) -> str:
+        noise = kwargs.get("noise", "0.5")
+        noisew = kwargs.get("noisew", "0.9")
+        sdp_ratio = kwargs.get("sdp_ratio", "0.2")
+        return await self.client.generate_audio(text=text, speaker=voice_id, noise=noise, noisew=noisew, sdp_ratio=sdp_ratio)
 
 class OddTTSDriver:
     '''TTS驱动类'''
-    def __init__(self):
+    def __init__(self, type: ODDTTS_TYPE):
         self.strategies: dict[ODDTTS_TYPE, BaseTTS] = {}
+        self.tts = self.get_strategy(type)
 
-    async def get_voices(self, type: str) -> list[dict[str, str]]:
-        tts = self.get_strategy(type)
-        return await tts.get_voices()
+    async def get_voices(self, type: ODDTTS_TYPE) -> list[dict[str, str]]:
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+        
+        return await self.tts.get_voices()
 
-    async def synthesis(self, type: str, text: str, voice_id: str, **kwargs) -> str:
-        tts = self.get_strategy(type)
-        file_name = await tts.synthesis(text=text, voice_id=voice_id, **kwargs)
+    async def synthesis(self, type: ODDTTS_TYPE, text: str, voice_id: str, **kwargs) -> str:
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+
+        file_name = await self.tts.synthesis(text=text, voice_id=voice_id, **kwargs)
         logger.info(f"TTS synthesis # type:{type} text:{text} voice_id:{voice_id} => file_name: {file_name} #")
         return file_name
 
-    async def generate_tts_file(self, type: str, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
-        tts = self.get_strategy(type)
-        return await tts.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
+    async def generate_tts_file(self, type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int) -> list[str]:
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+        return await self.tts.generate_tts_file(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
 
-    async def generate_tts_bytes(self, type: str, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
-        tts = self.get_strategy(type)
-        return await tts.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
+    async def generate_tts_bytes(self, type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+        return await self.tts.generate_tts_bytes(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch)
     
-    async def generate_tts_stream(self, type: str, text: str, voice: str, rate: int, volume: int, pitch: int):
-        tts = self.get_strategy(type)
-        async for chunk in tts.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
+    async def generate_tts_stream(self, type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int):
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+
+        async for chunk in self.tts.generate_tts_stream(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch):
             yield chunk
 
     def get_strategy(self, type: ODDTTS_TYPE) -> BaseTTS:
@@ -195,7 +153,10 @@ class OddTTSDriver:
             return OddTTSBertVITS2V2()
         elif type == ODDTTS_TYPE.ODDTTS_GPTSOVITS:
             return OddTTSGPTSovits()
+        elif type == ODDTTS_TYPE.ODDTTS_KOKORO:
+            return OddTTSKokoro()
         else:
-            #default use Edge TTS
+            #fallback: default use Edge TTS
             return OddTTSEdge()
             # raise ValueError("Unknown type")
+

@@ -59,7 +59,11 @@ O   O  d   d  d   d  M   M  e        t    a     a
         # 使用命令行参数或默认配置
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
-        
+
+        print(f"Running TTS engine: {config.oddtts_cfg['tts_type'].value}")
+
+        print(f"Visit Gradio interface: {host}:{port}/gradio")
+
         # 使用直接导入的app对象，添加优雅关闭配置
         uvicorn.run(
             app,
