@@ -3,6 +3,7 @@ import requests
 import logging
 import yaml
 from uuid import uuid4
+from oddtts.oddtts_params import TTSParams
 # from plugins.GenshinVoice.pkg.audio_converter import convert_to_silk
 
 logger = logging.getLogger(__name__)
@@ -116,15 +117,15 @@ class BertVits2V2API:
             logger.error(f"Failed to generate audio. audio_url={audio_url}")
         return None
     
-    async def generate_tts_file(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> str:
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
         audio_path = self.generate_audio(text)
         return audio_path
 
-    async def generate_tts_bytes(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> str:
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> str:
         audio_path = self.generate_audio(text)
         return audio_path
 
-    async def generate_tts_stream(self, text: str, voice: str, rate: int, volume: int, pitch: int) -> bytes:
+    async def generate_tts_stream(self, text: str, tts_params: TTSParams) -> bytes:
         audio_path = self.generate_audio(text)
         with open(audio_path, 'rb') as f:
             audio_data = f.read()
@@ -151,7 +152,8 @@ if __name__ == "__main__":
 
     # Pass the "character" parameter as an argument when creating AudioGenerator
     audio_generator = BertVits2V2API(config, character=user_character or None)
-    asyncio.run(audio_generator.generate_tts_file("Odd GPT Sovits 是一个基于 GPT Sovits 的语音合成模型", "bert_vits2", 1, 1, 1))
+    tts_params = TTSParams(voice="流萤_ZH", rate=1, volume=1, pitch=1)
+    asyncio.run(audio_generator.generate_tts_file("Odd GPT Sovits 是一个基于 GPT Sovits 的语音合成模型", tts_params))
 
 
     # if result:

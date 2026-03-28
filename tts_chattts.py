@@ -4,7 +4,7 @@ import subprocess
 
 # import ChatTTS
 
-from oddtts.oddtts_params import new_uuid
+from oddtts.oddtts_params import new_uuid, TTSParams
 
 logger = logging.getLogger(__name__)
 
@@ -41,40 +41,14 @@ class ChatTTSAPI():
     async def get_voices(self) -> list:
         return chat_tts_voices
     
-    async def generate_tts_file(self, text: str, voice: str) -> str:
-        return self.create_audio(text, voice)
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+        return self.create_audio(text, tts_params.voice)
     
-    async def generate_tts_bytes(self, text: str, voice: str) -> bytes:
-        return self.create_audio(text, voice)
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        return self.create_audio(text, tts_params.voice)
     
-    async def generate_tts_stream(self, text: str, voice: str) -> bytes:
-        audio_path = self.create_audio(text, voice)
+    async def generate_tts_stream(self, text: str, tts_params: TTSParams) -> bytes:
+        audio_path = self.create_audio(text, tts_params.voice)
         with open(audio_path, 'rb') as f:
             audio_data = f.read()
         return audio_data
-
-    @staticmethod
-    def remove_html(text: str):
-        # TODO 待改成正则
-        new_text = text.replace('[', "")
-        new_text = new_text.replace(']', "")
-        return new_text
-    
-    @staticmethod
-    def create_audio(text, voiceId):
-        new_text = ChatTTSAPI.remove_html(text)
-        pwdPath = os.getcwd()
-        file_name = new_uuid() + ".wav"
-        filePath = pwdPath + "/tmp/" + file_name
-        dirPath = os.path.dirname(filePath)
-        if not os.path.exists(dirPath):
-            os.makedirs(dirPath)
-        if not os.path.exists(filePath):
-            # 用open创建文件 兼容mac
-            open(filePath, 'a').close()
-
-        subprocess.run(["edge-tts", "--voice", voiceId, "--text", new_text, "--write-media", str(filePath)])
-
-        print("tts audio file: ", file_name)
-        
-        return file_name

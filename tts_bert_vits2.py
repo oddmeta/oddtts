@@ -5,7 +5,7 @@ import uuid
 import requests
 import logging
 
-from oddtts.oddtts_params import new_uuid
+from oddtts.oddtts_params import new_uuid, TTSParams
 
 logger = logging.getLogger(__name__)
 
@@ -173,14 +173,14 @@ class BertVits2API():
     async def get_voices(self) -> list:
         return bert_vits2_voices
 
-    async def generate_tts_file(self, text: str, speaker: str, noise: str, noisew: str, sdp_ratio: str) -> str:
-        return self.do_synthesis(text, speaker, noise, noisew, sdp_ratio)
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+        return self.do_synthesis(text, tts_params)
 
-    async def generate_tts_bytes(self, text: str, speaker: str, noise: str, noisew: str, sdp_ratio: str) -> bytes:
-        return self.do_synthesis(text, speaker, noise, noisew, sdp_ratio)
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        return self.do_synthesis(text, tts_params)
 
-    async def generate_tts_stream(self, text: str, speaker: str, noise: str, noisew: str, sdp_ratio: str) -> bytes:
-        audio_path = self.do_synthesis(text, speaker, noise, noisew, sdp_ratio)
+    async def generate_tts_stream(self, text: str, tts_params: TTSParams) -> bytes:
+        audio_path = self.do_synthesis(text, tts_params)
         logger.debug(f"audio_path={audio_path}")
         with open(audio_path, 'rb') as f:
             audio_data = f.read()
@@ -188,4 +188,5 @@ class BertVits2API():
 
 if __name__ == '__main__':
     client = BertVits2API()
-    client.do_synthesis(text="晚上好", speaker="流萤_ZH", noise=0.6, noisew=0.9, sdp_ratio=0.5)
+    tts_params = TTSParams(voice="流萤_ZH", rate=1, volume=1, pitch=1)
+    client.do_synthesis(text="晚上好", tts_params=tts_params)

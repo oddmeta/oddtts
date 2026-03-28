@@ -1,0 +1,11 @@
+kokoro
+ordered-set
+edge-tts
+torch
+soundfile
+numpy
+flask
+flask-cors
+misaki[zh]
+pydub
+ffmpeg

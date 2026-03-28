@@ -1,22 +1,17 @@
-# g:\oddmeta\oddtts\oddtts\app.py
-# run.py
 import sys
 import subprocess
 import importlib.util
 import argparse
-import signal
 
 def install_required_packages():
     required_packages = [
-        'gradio',
-        'fastapi',
-        'uvicorn',
-        'asyncio',
+        'flask',
+        'flask_cors',
         'edge_tts'
     ]
     
     for package in required_packages:
-        if importlib.util.find_spec(package) is None:
+        if importlib.util.find_spec(package.replace('_', '-')) is None:
             print(f"Installing {package}...")
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -27,20 +22,16 @@ def install_required_packages():
 
 
 def main():
-    install_required_packages()
+    # install_required_packages()
     
-    # 解析命令行参数
     parser = argparse.ArgumentParser(description='ODD TTS Application')
     parser.add_argument('--host', type=str, default=None, help='Host address (default: from config)')
     parser.add_argument('--port', type=int, default=None, help='Port number (default: from config)')
     
     args = parser.parse_args()
     
-    # 导入应用和配置 - 使用更明确的导入路径
     try:
-        # 修改这里：直接从oddtts模块导入app对象
         from oddtts.oddtts import app
-        import uvicorn
         import oddtts.oddtts_config as config
 
         asciiart = r"""
@@ -56,22 +47,13 @@ O   O  d   d  d   d  M   M  e        t    a     a
         
         print(asciiart)
 
-        # 使用命令行参数或默认配置
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
 
         print(f"Running TTS engine: {config.oddtts_cfg['tts_type'].value}")
+        print(f"Visit Web interface: http://{host}:{port}/")
 
-        print(f"Visit Gradio interface: {host}:{port}/gradio")
-
-        # 使用直接导入的app对象，添加优雅关闭配置
-        uvicorn.run(
-            app,
-            host=host,
-            port=port,
-            reload=config.Debug,
-            timeout_graceful_shutdown=5,  # 设置优雅关闭超时时间为5秒
-        )
+        app.run(host=host, port=port, debug=config.Debug)
     except Exception as e:
         print(f"Failed to start application: {e}")
         sys.exit(1)

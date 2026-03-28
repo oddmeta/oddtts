@@ -33,6 +33,7 @@ Considering the wide range of applications for TTS functionality, I separated it
 | ChatTTS    | 2.5GB    | 4GB     | 6GB+  | 1.5GB  | 1GB   | ✅ Yes             | Fast             |
 | Bert-VITS2 | 5GB      | 6GB     | 8GB+  | 3GB    | 2GB   | ✅ Yes             | Moderate         |
 | GPT-SoVITS v2 | 8GB   | 10GB    | 12GB+ | 4GB    | 2.5GB | ❌ Not recommended | Slow             |
+| **Kokoro** | 0GB | 0GB | 0GB+ | 0GB | 0GB | ✅ Yes | Fast |
 
 > XiaoLuo Tongxue uses an Alibaba Cloud ECS server costing 99 yuan/year with only 2 cores and 2GB of memory, which can't run any TTS models, so it uses EdgeTTS.
 
@@ -236,6 +237,10 @@ After starting the service, you can access `http://localhost:9001/` through your
 3. **How to switch TTS engines**
    - Modify the `tts_type` configuration item in the `oddtts_config.py` file
    - Restart the service for the configuration to take effect
+
+4. **Output format**        
+   - Default output format: mp3
+   - You can specify other format such as wav, mp3 by setting  `response_format` parameter
 
 ## VI. License
 

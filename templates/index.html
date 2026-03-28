@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OddTTS 语音合成Web服务</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #00d4ff; text-align: center; margin-bottom: 10px; }
+        .subtitle { color: #888; text-align: center; margin-bottom: 30px; }
+        
+        .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 12px 24px; background: #2a2a4a; color: #fff; border: none; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .tab-btn:hover { background: #3a3a5a; }
+        .tab-btn.active { background: #00d4ff; color: #000; }
+        
+        .tab-content { display: none; background: #1a1a2e; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .tab-content.active { display: block; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; color: #00d4ff; margin-bottom: 8px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; background: #2a2a4a; border: 1px solid #3a3a5a; border-radius: 8px; color: #fff; font-size: 14px; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #00d4ff; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        
+        .slider-group { display: flex; gap: 20px; flex-wrap: wrap; }
+        .slider-item { flex: 1; min-width: 200px; }
+        .slider-item label { display: block; color: #00d4ff; margin-bottom: 8px; }
+        .slider-item input[type="range"] { width: 100%; }
+        .slider-value { color: #00d4ff; font-weight: bold; }
+        
+        .btn { padding: 14px 28px; background: #00d4ff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; }
+        .btn:hover { background: #00b8e6; transform: translateY(-2px); }
+        .btn:disabled { background: #555; cursor: not-allowed; }
+        
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; }
+        
+        .audio-player { margin-top: 20px; padding: 20px; background: #2a2a4a; border-radius: 8px; }
+        .audio-player audio { width: 100%; }
+        
+        .result-box { margin-top: 20px; padding: 16px; background: #2a2a4a; border-radius: 8px; display: none; }
+        .result-box.show { display: block; }
+        .result-box pre { background: #1a1a2e; padding: 12px; border-radius: 8px; overflow-x: auto; color: #00d4ff; max-height: 300px; }
+        
+        .status { padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+        .status.info { background: #2a4a6a; color: #00d4ff; }
+        .status.success { background: #2a5a4a; color: #00ff88; }
+        .status.error { background: #5a2a4a; color: #ff4444; }
+        
+        .voice-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+        .voice-card { background: #2a2a4a; padding: 16px; border-radius: 8px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; }
+        .voice-card:hover { border-color: #00d4ff; transform: translateY(-2px); }
+        .voice-card.selected { border-color: #00d4ff; background: #3a3a5a; }
+        .voice-card h3 { color: #00d4ff; font-size: 16px; margin-bottom: 8px; }
+        .voice-card p { color: #aaa; font-size: 14px; }
+        
+        .api-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .api-card { background: #2a2a4a; padding: 20px; border-radius: 8px; }
+        .api-card h3 { color: #00d4ff; margin-bottom: 12px; }
+        .api-card code { display: block; background: #1a1a2e; padding: 8px; border-radius: 4px; color: #ff8888; margin-bottom: 8px; font-size: 12px; overflow-x: auto; }
+        .api-card p { color: #aaa; font-size: 14px; }
+        
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OddTTS 语音合成Web服务</h1>
+        <p class="subtitle">提供语音合成API，支持文件/字节流/流式调用</p>
+        
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tts">语音合成</button>
+            <button class="tab-btn" data-tab="openai">OpenAI兼容</button>
+            <button class="tab-btn" data-tab="voices">语音列表</button>
+            <button class="tab-btn" data-tab="api">API文档</button>
+        </div>
+        
+        <div class="tab-content active" id="tts">
+            <div class="two-col">
+                <div>
+                    <div class="form-group">
+                        <label>输入文本</label>
+                        <textarea id="tts-text" placeholder="请输入要转换为语音的文本...">欢迎关注我公众号：奥德元。一起学习AI，一起追赶时代。</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>选择语种</label>
+                        <select id="tts-locale">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>选择语音</label>
+                        <select id="tts-voice">
+                            <option value="">请先选择语种</option>
+                        </select>
+                    </div>
+                    
+                    <div class="slider-group">
+                        <div class="slider-item">
+                            <label>语速: <span class="slider-value" id="rate-value">0</span>%</label>
+                            <input type="range" id="tts-rate" min="-50" max="50" value="0" step="5">
+                        </div>
+                        <div class="slider-item">
+                            <label>音量: <span class="slider-value" id="volume-value">0</span>%</label>
+                            <input type="range" id="tts-volume" min="-50" max="50" value="0" step="5">
+                        </div>
+                        <div class="slider-item">
+                            <label>音调: <span class="slider-value" id="pitch-value">0</span>Hz</label>
+                            <input type="range" id="tts-pitch" min="-50" max="50" value="0" step="5">
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="btn-group">
+                        <button class="btn" id="btn-file">生成文件</button>
+                        <button class="btn" id="btn-base64">生成Base64</button>
+                        <button class="btn" id="btn-stream">流式生成</button>
+                    </div>
+                    
+                    <div class="status" id="tts-status" style="display:none"></div>
+                    
+                    <div class="audio-player" id="audio-player" style="display:none">
+                        <audio id="audio-element" controls></audio>
+                        <button class="btn" id="btn-download" style="margin-top:12px">下载音频</button>
+                    </div>
+                    
+                    <div class="result-box" id="base64-result">
+                        <p style="color:#00d4ff;margin-bottom:8px;">Base64编码结果:</p>
+                        <pre id="base64-output"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="openai">
+            <div class="two-col">
+                <div>
+                    <div class="form-group">
+                        <label>输入文本 (input)</label>
+                        <textarea id="openai-text" placeholder="请输入要转换为语音的文本...">欢迎关注我公众号：奥德元。一起学习AI，一起追赶时代。</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>语音 (voice)</label>
+                        <select id="openai-voice">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>语速 (speed): <span class="slider-value" id="speed-value">1.0</span></label>
+                        <input type="range" id="openai-speed" min="0.25" max="4" value="1" step="0.25">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>返回格式 (response_format)</label>
+                        <select id="openai-format">
+                            <option value="mp3">mp3</option>
+                            <option value="wav">wav</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" id="btn-openai">生成语音</button>
+                </div>
+                
+                <div>
+                    <div class="status" id="openai-status" style="display:none"></div>
+                    
+                    <div class="audio-player" id="openai-player" style="display:none">
+                        <audio id="openai-audio" controls></audio>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="voices">
+            <div class="form-group">
+                <label>筛选语种</label>
+                <select id="filter-locale">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="voice-list" id="voice-list">
+                <p style="color:#888;">加载中...</p>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="api">
+            <div class="api-list">
+                <div class="api-card">
+                    <h3>获取语音列表</h3>
+                    <code>GET /v1/audio/voice/list</code>
+                    <p>获取所有可用的语音列表</p>
+                </div>
+                <div class="api-card">
+                    <h3>生成TTS(文件)</h3>
+                    <code>POST /api/oddtts/file</code>
+                    <p>生成TTS音频并返回文件路径</p>
+                </div>
+                <div class="api-card">
+                    <h3>生成TTS(Base64)</h3>
+                    <code>POST /api/oddtts/base64</code>
+                    <p>生成TTS音频并返回Base64编码</p>
+                </div>
+                <div class="api-card">
+                    <h3>生成TTS(流式)</h3>
+                    <code>POST /api/oddtts/stream</code>
+                    <p>生成TTS音频并以流式响应返回</p>
+                </div>
+                <div class="api-card">
+                    <h3>获取模型列表</h3>
+                    <code>GET /v1/models</code>
+                    <p>OpenAI兼容 - 获取可用模型列表</p>
+                </div>
+                <div class="api-card">
+                    <h3>生成语音</h3>
+                    <code>POST /v1/audio/speech</code>
+                    <p>OpenAI兼容 - 生成语音</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let voices = [];
+        let voiceMap = {};
+        
+        // Tab切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // 滑块值显示
+        ['rate', 'volume', 'pitch'].forEach(id => {
+            document.getElementById('tts-' + id).addEventListener('input', e => {
+                document.getElementById(id + '-value').textContent = e.target.value;
+            });
+        });
+        document.getElementById('openai-speed').addEventListener('input', e => {
+            document.getElementById('speed-value').textContent = e.target.value;
+        });
+        
+        // 加载语音列表
+        async function loadVoices() {
+            try {
+                const res = await fetch('/v1/audio/voice/list');
+                voices = await res.json();
+                
+                voiceMap = {};
+                voices.forEach(v => { if(v.name) voiceMap[v.name] = v; });
+                
+                const locales = [...new Set(voices.map(v => v.locale).filter(Boolean))].sort();
+                
+                // 填充语种下拉框
+                const localeSelect = document.getElementById('tts-locale');
+                const filterLocale = document.getElementById('filter-locale');
+                localeSelect.innerHTML = '<option value="">选择语种</option>';
+                filterLocale.innerHTML = '<option value="">全部</option>';
+                locales.forEach(l => {
+                    localeSelect.innerHTML += `<option value="${l}">${l}</option>`;
+                    filterLocale.innerHTML += `<option value="${l}">${l}</option>`;
+                });
+                
+                // 填充OpenAI语音选择
+                const openaiVoice = document.getElementById('openai-voice');
+                openaiVoice.innerHTML = '';
+                voices.forEach(v => {
+                    if(v.short_name) {
+                        openaiVoice.innerHTML += `<option value="${v.short_name}">${v.short_name}</option>`;
+                    }
+                });
+                
+                document.getElementById('tts-voice').innerHTML = '<option value="">请先选择语种</option>';
+                
+                // 显示所有语音
+                renderVoiceList(voices);
+                
+            } catch(e) {
+                console.error('加载语音失败:', e);
+            }
+        }
+        
+        // 语种选择变化
+        document.getElementById('tts-locale').addEventListener('change', e => {
+            const locale = e.target.value;
+            const filtered = locale ? voices.filter(v => v.locale === locale) : voices;
+            const voiceSelect = document.getElementById('tts-voice');
+            voiceSelect.innerHTML = '';
+            filtered.forEach(v => {
+                if(v.short_name) {
+                    voiceSelect.innerHTML += `<option value="${v.short_name}">${v.short_name}</option>`;
+                }
+            });
+        });
+        
+        // 语音列表筛选
+        document.getElementById('filter-locale').addEventListener('change', e => {
+            const locale = e.target.value;
+            const filtered = locale ? voices.filter(v => v.locale === locale) : voices;
+            renderVoiceList(filtered);
+        });
+        
+        // 渲染语音列表
+        function renderVoiceList(list) {
+            const container = document.getElementById('voice-list');
+            container.innerHTML = list.map(v => `
+                <div class="voice-card">
+                    <h3>${v.short_name || 'N/A'}</h3>
+                    <p><strong>名称:</strong> ${v.name || 'N/A'}</p>
+                    <p><strong>性别:</strong> ${v.gender || 'N/A'}</p>
+                    <p><strong>语种:</strong> ${v.locale || 'N/A'}</p>
+                </div>
+            `).join('');
+        }
+        
+        // 通用请求函数
+        async function apiRequest(url, data) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return res;
+        }
+        
+        // 显示状态
+        function showStatus(elementId, msg, type) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.className = 'status ' + type;
+            el.textContent = msg;
+        }
+        
+        // 文件生成
+        document.getElementById('btn-file').addEventListener('click', async () => {
+            const text = document.getElementById('tts-text').value;
+            const voice = document.getElementById('tts-voice').value;
+            if(!text || !voice) { alert('请输入文本并选择语音'); return; }
+            
+            showStatus('tts-status', '生成中...', 'info');
+            document.getElementById('btn-file').disabled = true;
+            
+            try {
+                const res = await apiRequest('/api/oddtts/file', {
+                    text, voice,
+                    rate: parseInt(document.getElementById('tts-rate').value),
+                    volume: parseInt(document.getElementById('tts-volume').value),
+                    pitch: parseInt(document.getElementById('tts-pitch').value),
+                    locale: document.getElementById('tts-locale').value,
+                    response_format: "wav"
+                });
+                const data = await res.json();
+                
+                if(data.file_path) {
+                    showStatus('tts-status', '生成成功! 文件: ' + data.file_path, 'success');
+                    document.getElementById('audio-player').style.display = 'block';
+                    document.getElementById('audio-element').src = '/play?path=' + encodeURIComponent(data.file_path);
+                    document.getElementById('base64-result').classList.remove('show');
+                } else {
+                    showStatus('tts-status', '错误: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('tts-status', '错误: ' + e.message, 'error');
+            }
+            
+            document.getElementById('btn-file').disabled = false;
+        });
+        
+        // Base64生成
+        document.getElementById('btn-base64').addEventListener('click', async () => {
+            const text = document.getElementById('tts-text').value;
+            const voice = document.getElementById('tts-voice').value;
+            if(!text || !voice) { alert('请输入文本并选择语音'); return; }
+            
+            showStatus('tts-status', '生成中...', 'info');
+            document.getElementById('btn-base64').disabled = true;
+            
+            try {
+                const res = await apiRequest('/api/oddtts/base64', {
+                    text, voice,
+                    rate: parseInt(document.getElementById('tts-rate').value),
+                    volume: parseInt(document.getElementById('tts-volume').value),
+                    pitch: parseInt(document.getElementById('tts-pitch').value),
+                    locale: document.getElementById('tts-locale').value,
+                    response_format: "wav"
+                });
+                const data = await res.json();
+                
+                if(data.base64) {
+                    showStatus('tts-status', 'Base64生成成功!', 'success');
+                    document.getElementById('base64-output').textContent = data.base64.substring(0, 500) + '...';
+                    document.getElementById('base64-result').classList.add('show');
+                    document.getElementById('audio-player').style.display = 'none';
+                } else {
+                    showStatus('tts-status', '错误: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('tts-status', '错误: ' + e.message, 'error');
+            }
+            
+            document.getElementById('btn-base64').disabled = false;
+        });
+        
+        // 流式生成
+        document.getElementById('btn-stream').addEventListener('click', async () => {
+            const text = document.getElementById('tts-text').value;
+            const voice = document.getElementById('tts-voice').value;
+            if(!text || !voice) { alert('请输入文本并选择语音'); return; }
+            
+            showStatus('tts-status', '流式生成中...', 'info');
+            document.getElementById('btn-stream').disabled = true;
+            
+            try {
+                const res = await apiRequest('/api/oddtts/stream', {
+                    text, voice,
+                    rate: parseInt(document.getElementById('tts-rate').value),
+                    volume: parseInt(document.getElementById('tts-volume').value),
+                    pitch: parseInt(document.getElementById('tts-pitch').value),
+                    locale: document.getElementById('tts-locale').value,
+                    response_format: "wav"
+                });
+                
+                if(res.ok) {
+                    showStatus('tts-status', '流式生成成功!', 'success');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('audio-player').style.display = 'block';
+                    document.getElementById('audio-element').src = url;
+                    document.getElementById('base64-result').classList.remove('show');
+                } else {
+                    const data = await res.json();
+                    showStatus('tts-status', '错误: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('tts-status', '错误: ' + e.message, 'error');
+            }
+            
+            document.getElementById('btn-stream').disabled = false;
+        });
+        
+        // 下载音频
+        document.getElementById('btn-download').addEventListener('click', () => {
+            const audio = document.getElementById('audio-element');
+            if(audio.src) {
+                const a = document.createElement('a');
+                a.href = audio.src;
+                a.download = 'oddtts_audio.mp3';
+                a.click();
+            }
+        });
+        
+        // OpenAI API
+        document.getElementById('btn-openai').addEventListener('click', async () => {
+            const text = document.getElementById('openai-text').value;
+            const voice = document.getElementById('openai-voice').value;
+            if(!text || !voice) { alert('请输入文本并选择语音'); return; }
+            
+            showStatus('openai-status', '生成中...', 'info');
+            document.getElementById('btn-openai').disabled = true;
+            
+            try {
+                const res = await apiRequest('/v1/audio/speech', {
+                    input: text,
+                    voice: voice,
+                    speed: parseFloat(document.getElementById('openai-speed').value),
+                    locale: "zh-CN",
+                    response_format: document.getElementById('openai-format').value
+                });
+                
+                if(res.ok) {
+                    showStatus('openai-status', '生成成功!', 'success');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('openai-player').style.display = 'block';
+                    document.getElementById('openai-audio').src = url;
+                } else {
+                    const data = await res.json();
+                    showStatus('openai-status', '错误: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('openai-status', '错误: ' + e.message, 'error');
+            }
+            
+            document.getElementById('btn-openai').disabled = false;
+        });
+        
+        // 初始化
+        loadVoices();
+    </script>
+</body>
+</html>
