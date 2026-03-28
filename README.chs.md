@@ -158,7 +158,7 @@ from openai import OpenAI
 base_url = "http://localhost:9001/v1"
 model = "oddtts-1"
 api_key = "dummy"
-voice = "zh-CN-XiaoyiNeural"
+voice = "zf_xiaobei"
 
 text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
 

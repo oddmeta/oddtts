@@ -1,3 +1,4 @@
+requests
 kokoro
 ordered-set
 edge-tts
