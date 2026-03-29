@@ -61,7 +61,7 @@ class KokoroAPI():
         """
         生成语音
         """
-        logger.info(f"生成语音，参数：{tts_params}")
+        logger.info(f"生成语音，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
         rate_, volume_, pitch_, lang_ = self._params_adjustments(tts_params)
 
         # 生成语音
@@ -88,7 +88,7 @@ class KokoroAPI():
         return audio_numpy
 
     async def generate_tts_file(self, text: str, tts_params: TTSParams) -> list[str]:
-        logger.info(f"生成语音文件，参数：{tts_params}")
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
         audio_numpy = await self._generate_audio(text, tts_params)
 
         # 3. 处理维度
@@ -108,7 +108,7 @@ class KokoroAPI():
         return output_file
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
-        logger.info(f"生成语音字节流，参数：{tts_params}")
+        logger.info(f"生成语音字节流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
 
         audio_numpy = await self._generate_audio(text, tts_params)
         
@@ -124,14 +124,12 @@ class KokoroAPI():
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
 
-        logger.info(f"生成语音流，参数：{tts_params}")
+        logger.info(f"生成语音流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
 
         audio_numpy = await self._generate_audio(text, tts_params)
         
         output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
-        
-        logger.info(f"生成语音流，参数：{tts_params}，输出格式：{output_format}")
-        
+                
         audio_data = convert_audio_format(
             input_data=audio_numpy,
             input_type="numpy",

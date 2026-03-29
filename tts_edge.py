@@ -34,6 +34,9 @@ class EdgeTTSAPI():
         return voice_list
     
     async def generate_tts_file(self, text: str, tts_params: TTSParams) -> list[str]:
+
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
         # 确保参数格式正确，包含正负符号
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
@@ -57,6 +60,7 @@ class EdgeTTSAPI():
         return output_file
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
@@ -78,6 +82,8 @@ class EdgeTTSAPI():
         return audio_data
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+        
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
