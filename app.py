@@ -50,7 +50,7 @@ O   O  d   d  d   d  M   M  e        t    a     a
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
 
-        print(f"Running TTS engine: {config.oddtts_cfg['tts_type'].value}")
+        print(f"Running TTS engine: {config.oddtts_cfg['tts_type'].name}")
         print(f"Visit Web interface: http://{host}:{port}/")
 
         app.run(host=host, port=port, debug=config.Debug)
