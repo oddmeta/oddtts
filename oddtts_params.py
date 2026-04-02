@@ -9,7 +9,6 @@ from pydub import AudioSegment
 
 class TTSParams:
     '''合成语音参数类'''
-    text: str
     voice: str
     rate: int
     volume: int
@@ -17,8 +16,7 @@ class TTSParams:
     locale: str
     response_format: str
 
-    def __init__(self, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav") -> None:
-        self.text = text
+    def __init__(self, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav") -> None:
         self.voice = voice
         self.rate = rate
         self.volume = volume
@@ -183,6 +181,8 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_BERTVITS2_V2 = 5
     # Kokoro
     ODDTTS_KOKORO = 6
+    # Kokoro v1.1
+    ODDTTS_KOKORO_V1_1 = 7
 
     def __str__(self):
         return self.name.title()

@@ -9,6 +9,7 @@ from oddtts.tts_bert_vits2_v2 import BertVits2V2API
 from oddtts.tts_odd_gptsovits import OddGptSovitsAPI
 from oddtts.tts_chattts import ChatTTSAPI
 from oddtts.tts_kokoro import KokoroAPI
+from oddtts.tts_kokoro_v11 import KokoroAPIV11
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,9 @@ class OddTTSDriver:
             return tts
         elif type == ODDTTS_TYPE.ODDTTS_KOKORO:
             tts.client = KokoroAPI()
+            return tts
+        elif type == ODDTTS_TYPE.ODDTTS_KOKORO_V1_1:
+            tts.client = KokoroAPIV11()
             return tts
         else:
             #fallback: default use Edge TTS

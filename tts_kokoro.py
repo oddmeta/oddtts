@@ -5,6 +5,8 @@ import tempfile
 import uuid
 import asyncio
 import io
+import time
+import sys
 
 from kokoro import KPipeline
 import soundfile as sf
@@ -57,6 +59,15 @@ class KokoroAPI():
 
         return rate_, volume_, pitch_, lang_
 
+    async def _load_pipeline(self, lang_:str, tts_params: TTSParams) -> None:
+        """
+        加载管道
+        """
+        if self.pipeline is None:
+            start_time = time.time()
+            self.pipeline = KPipeline(lang_code='z')
+            logger.info(f"加载管道耗时：{time.time() - start_time}秒")
+
     async def _generate_audio(self, text: str, tts_params: TTSParams) -> np.ndarray:
         """
         生成语音
@@ -64,18 +75,22 @@ class KokoroAPI():
         logger.info(f"生成语音，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
         rate_, volume_, pitch_, lang_ = self._params_adjustments(tts_params)
 
+        start_time = time.time()
+
         # 生成语音
         if text == "":
             text = "关注我的公众号：奥德元，一起学习 AI，一起追赶时代。"
 
         # 生成音频数据
-        if self.pipeline is None:
-            self.pipeline = KPipeline(lang_code=lang_)
+        await self._load_pipeline(lang_, tts_params)
         
+        start_time_generate = time.time()
         generator = self.pipeline(text, voice=tts_params.voice, speed=rate_, split_pattern=r'\n+')
 
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
         result = next(generator)
+
+        logger.info(f"文本长度：{len(text)}，生成语音耗时：{time.time() - start_time_generate}秒，总耗时：{time.time() - start_time}秒")
 
         # 1. 访问 result.output.audio 获取 tensor
         # 根据日志: result.output 是 KModel.Output 对象，里面有个 audio 属性是 tensor
@@ -152,7 +167,7 @@ def test_kokoro():
         volume=0,
         pitch=0,
         locale="zh-CN",
-        output_format="wav"
+        response_format="wav"
     )
 
     file_name = asyncio.run(api.generate_tts_file(text, tts_params))

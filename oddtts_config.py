@@ -18,6 +18,8 @@ oddtts_cfg = {
     "concurrent_thread": 0,
     ## tts type
     "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO,
+    "local_repo_id": "hexgrad/Kokoro-82M-v1.1-zh",
+    "local_model_dir": "ckpts",
     ## HTTPS configuration
     "enable_https": False,
     "ssl_cert_path": "scripts/cert.pem",
