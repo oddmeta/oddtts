@@ -17,8 +17,7 @@ oddtts_cfg = {
     ## concurrent threads, 0 auto detect CPU cores
     "concurrent_thread": 0,
     ## tts type
-    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO,
-    "local_repo_id": "hexgrad/Kokoro-82M-v1.1-zh",
+    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO_V1_1,
     "local_model_dir": "ckpts",
     ## HTTPS configuration
     "enable_https": False,

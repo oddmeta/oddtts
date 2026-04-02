@@ -22,14 +22,14 @@ from oddtts.oddtts_params import TTSParams
 logger = logging.getLogger(__name__)
 
 KokoroV11_voices = {
-    'Kokoro Voice (zh-CN, Xiaobei)': {'name': 'zf_001', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_001'}, 
-    'Kokoro Voice (zh-CN, Xiaoni)': {'name': 'zf_002', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_002'},
-    'Kokoro Voice (zh-CN, Xiaoxiao)': {'name': 'zf_003', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_003'},
-    'Kokoro Voice (zh-CN, Xiaoyi)': {'name': 'zf_004', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_004'},
-    'Kokoro Voice (zh-CN, Yunjian)': {'name': 'zm_009', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_009'},
-    'Kokoro Voice (zh-CN, Yunxi)': {'name': 'zm_010', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_010'}, 
-    'Kokoro Voice (zh-CN, Yunyang)': {'name': 'zm_011', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_011'},
-    'Kokoro Voice (zh-CN, Yunxia)': {'name': 'zm_012', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_012'},
+    'Kokoro Voice (zh-CN, zf_001)': {'name': 'zf_001', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_001'}, 
+    'Kokoro Voice (zh-CN, zf_002)': {'name': 'zf_002', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_002'},
+    'Kokoro Voice (zh-CN, zf_003)': {'name': 'zf_003', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_003'},
+    'Kokoro Voice (zh-CN, zf_004)': {'name': 'zf_004', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_004'},
+    'Kokoro Voice (zh-CN, zm_009)': {'name': 'zm_009', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_009'},
+    'Kokoro Voice (zh-CN, zm_010)': {'name': 'zm_010', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_010'}, 
+    'Kokoro Voice (zh-CN, zm_011)': {'name': 'zm_011', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_011'},
+    'Kokoro Voice (zh-CN, zm_012)': {'name': 'zm_012', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_012'},
 }
 
 class KokoroAPIV11():

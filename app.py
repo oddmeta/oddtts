@@ -93,14 +93,6 @@ O   O  d   d  d   d  M   M  e        t    a     a
         # 1. 设置 Hugging Face 镜像地址 (国内用户推荐)
         os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
-        # # 2. 定义要检查的模型ID和本地保存路径
-        # model_id = config.oddtts_cfg['local_repo_id']
-        # download_path = config.oddtts_cfg['local_model_dir']
-        # print(f"Local repo ID: {model_id}, Local model dir: {download_path}")
-
-        # # 3. 执行检查和下载
-        # check_and_download_model(model_id, download_path)
-
         app.run(host=host, port=port, debug=config.Debug)
     except Exception as e:
         print(f"Failed to start application: {e}")

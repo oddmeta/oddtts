@@ -34,17 +34,17 @@ async def get_voices(type: ODDTTS_TYPE):
 
 async def generate_tts_file(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav"):
     logger.debug(f"[辅助] generate_tts_file调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
-    tts_params = TTSParams(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
     return await single_tts_driver.generate_tts_file(type=type, text=text, tts_params=tts_params)
 
 async def generate_tts_bytes(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav"):
     logger.debug(f"[辅助] generate_tts_bytes调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
-    tts_params = TTSParams(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
     return await single_tts_driver.generate_tts_bytes(type=type, text=text, tts_params=tts_params)
 
 async def generate_tts_stream(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav"):
     logger.debug(f"[辅助] generate_tts_stream调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
-    tts_params = TTSParams(text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format)
     async for chunk in single_tts_driver.generate_tts_stream(type=type, text=text, tts_params=tts_params):
         yield chunk
 
