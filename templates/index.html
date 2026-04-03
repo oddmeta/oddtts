@@ -77,6 +77,7 @@
             <button class="tab-btn" data-tab="openai">OpenAI兼容</button>
             <button class="tab-btn" data-tab="voices">语音列表</button>
             <button class="tab-btn" data-tab="api">API文档</button>
+            <button class="tab-btn" data-tab="model">当前TTS模型</button>
         </div>
         
         <div class="tab-content active" id="tts">
@@ -226,6 +227,62 @@
                 </div>
             </div>
         </div>
+
+        <div class="tab-content" id="model">
+            <div class="two-col">
+                <div>
+                    <h2 style="color:#00d4ff;margin-bottom:20px;">当前TTS模型配置</h2>
+                    
+                    <div class="form-group">
+                        <label>当前使用的TTS引擎</label>
+                        <div id="current-tts-type" style="background:#2a2a4a;padding:16px;border-radius:8px;color:#00ff88;font-size:18px;font-weight:bold;margin-bottom:20px;">
+                            加载中...
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>选择TTS引擎类型</label>
+                        <select id="tts-type-select" style="padding:12px;background:#2a2a4a;border:1px solid #3a3a5a;border-radius:8px;color:#fff;font-size:14px;width:100%;">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>TTS引擎说明</label>
+                        <div id="tts-type-description" style="background:#1a1a2e;padding:12px;border-radius:8px;color:#aaa;font-size:14px;line-height:1.6;">
+                            选择一个TTS引擎类型查看说明
+                        </div>
+                    </div>
+                    
+                    <button class="btn" id="btn-save-config">保存配置</button>
+                    <button class="btn" id="btn-reload-config" style="background:#ff6b6b;">重新加载</button>
+                </div>
+                
+                <div>
+                    <div class="status" id="config-status" style="display:none"></div>
+                    
+                    <div class="api-card" style="margin-top:20px;">
+                        <h3>配置说明</h3>
+                        <ul style="color:#aaa;font-size:14px;line-height:1.8;padding-left:20px;">
+                            <li>选择TTS引擎类型后点击"保存配置"</li>
+                            <li>配置将保存到 <code>oddtts_config.py</code> 文件</li>
+                            <li>保存后需要<strong>刷新页面</strong>才能生效</li>
+                            <li>重启命令: <code>python app.py</code></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="api-card" style="margin-top:20px;">
+                        <h3>TTS引擎列表</h3>
+                        <div id="tts-types-list" style="color:#aaa;font-size:13px;line-height:1.6;">
+                            加载中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            <div id="model-list"></div>
+        </div>
+        
     </div>
 
     <script>
@@ -496,8 +553,137 @@
             document.getElementById('btn-openai').disabled = false;
         });
         
+        // 模型配置管理
+        let ttsTypes = [];
+        let currentTtsType = null;
+        
+        // 加载TTS类型列表
+        async function loadTtsTypes() {
+            try {
+                const res = await fetch('/api/config/tts-types');
+                const data = await res.json();
+                ttsTypes = data.types || [];
+                currentTtsType = data.current || null;
+                
+                // 更新当前类型显示
+                if (currentTtsType) {
+                    document.getElementById('current-tts-type').textContent = currentTtsType.name;
+                }
+                
+                // 填充下拉框
+                const select = document.getElementById('tts-type-select');
+                select.innerHTML = '';
+                ttsTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.value;
+                    option.textContent = type.name;
+                    if (currentTtsType && currentTtsType.value === type.value) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+                
+                // 显示类型列表
+                const listDiv = document.getElementById('tts-types-list');
+                listDiv.innerHTML = ttsTypes.map(t => 
+                    `<div style="margin-bottom:8px;padding:8px;background:#2a2a4a;border-radius:4px;">
+                        <strong style="color:#00d4ff;">${t.name}</strong> 
+                        <span style="color:#888;">(值: ${t.value})</span>
+                        <div style="margin-top:4px;color:#aaa;font-size:12px;">${t.description}</div>
+                        <div style="margin-top:2px;color:${t.enable ? '#00ff88' : '#ff6b6b'};font-size:12px;">
+                            ${t.enable ? '✓ 已启用' : '✗ 已禁用'}
+                        </div>
+                    </div>`
+                ).join('');
+                
+                // 更新说明
+                updateTtsTypeDescription();
+                
+            } catch(e) {
+                console.error('加载TTS类型失败:', e);
+                showStatus('config-status', '加载TTS类型失败: ' + e.message, 'error');
+            }
+        }
+        
+        // 更新TTS类型说明
+        function updateTtsTypeDescription() {
+            const select = document.getElementById('tts-type-select');
+            const selectedValue = parseInt(select.value);
+            const selectedType = ttsTypes.find(t => t.value === selectedValue);
+            
+            const descDiv = document.getElementById('tts-type-description');
+            if (selectedType) {
+                descDiv.innerHTML = `
+                    <div style="margin-bottom:8px;"><strong>${selectedType.name}</strong></div>
+                    <div style="margin-bottom:8px;color:#aaa;">${selectedType.description}</div>
+                    <div style="color:${selectedType.enable ? '#00ff88' : '#ff6b6b'};">
+                        ${selectedType.enable ? '✓ 已启用' : '✗ 已禁用'}
+                    </div>
+                `;
+            } else {
+                descDiv.textContent = '选择一个TTS引擎类型查看说明';
+            }
+        }
+        
+        // 监听TTS类型选择变化
+        document.getElementById('tts-type-select').addEventListener('change', updateTtsTypeDescription);
+        
+        // 保存配置
+        document.getElementById('btn-save-config').addEventListener('click', async () => {
+            const select = document.getElementById('tts-type-select');
+            const selectedValue = parseInt(select.value);
+            
+            if (!selectedValue) {
+                showStatus('config-status', '请选择一个TTS引擎类型', 'error');
+                return;
+            }
+            
+            const selectedType = ttsTypes.find(t => t.value === selectedValue);
+            if (!selectedType) {
+                showStatus('config-status', '无效的TTS引擎类型', 'error');
+                return;
+            }
+            
+            showStatus('config-status', '正在保存配置...', 'info');
+            
+            try {
+                const res = await fetch('/api/config/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        tts_type: selectedValue,
+                        tts_type_name: selectedType.name
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showStatus('config-status', '配置保存成功！' + (data.message || '') + ' | 描述: ' + (selectedType.description || '无') + ' | 启用: ' + (selectedType.enabled !== false ? '是' : '否'), 'success');
+                    currentTtsType = selectedType;
+                    document.getElementById('current-tts-type').textContent = selectedType.name;
+                    
+                    // 自动刷新页面以更新语音列表
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showStatus('config-status', '保存失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('config-status', '保存失败: ' + e.message, 'error');
+            }
+        });
+        
+        // 重新加载配置
+        document.getElementById('btn-reload-config').addEventListener('click', () => {
+            loadTtsTypes();
+            showStatus('config-status', '配置已重新加载', 'info');
+        });
+        
         // 初始化
         loadVoices();
+        loadTtsTypes();
     </script>
 </body>
 </html>

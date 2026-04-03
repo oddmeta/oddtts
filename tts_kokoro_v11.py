@@ -1,25 +1,19 @@
-import logging
-import os
-import subprocess
-import tempfile
-import uuid
 import asyncio
-import io
 import time
 import json
 import sys
 
 from kokoro import KPipeline, KModel
-import soundfile as sf
 import numpy as np
 import torch
 from huggingface_hub import snapshot_download, try_to_load_from_cache
 
-from oddtts.oddtts_params import convert_audio_to_format
+from oddtts.oddtts_params import convert_ndarray_to_format
 from oddtts.oddtts_params import convert_audio_format
 from oddtts.oddtts_params import TTSParams
+from oddtts.oddtts_log import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 KokoroV11_voices = {
     'Kokoro Voice (zh-CN, zf_001)': {'name': 'zf_001', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_001'}, 
@@ -42,6 +36,7 @@ class KokoroAPIV11():
         self.default_text = "关注我的公众号：奥德元，一起学习 AI，一起追赶时代。Good good study, day day up."
         # 中文音色张量
         self.pipeline = None
+        self.voice = "zm_009"
         self.voice_tensor_cn = None
         # 中英混合-英文管道
         self.pipeline_en = None
@@ -122,7 +117,11 @@ class KokoroAPIV11():
         if text == 'Kokoro':
             return 'kˈOkəɹO'
 
-        # 默认使用英文管道和英文音色来处理
+        # 默认使用英文管道和英文音色来处理英文文本
+        if self.pipeline_en is None or self.voice_tensor_en is None:
+            logger.warning(f"英文管道或英文音色未加载，无法处理英文文本: {text}")
+            return text  # 返回原始文本，可能会被中文管道处理成不理想的发音
+        
         return next(self.pipeline_en(text, voice=self.voice_tensor_en)).phonemes
 
 
@@ -132,17 +131,11 @@ class KokoroAPIV11():
         '''
         if self.pipeline is None:
             start_time = time.time()
-
-            # 加载一个中文音色和一个英文音色
-            logger.info(f"[响应] 加载管道: 开始加载权重...")
-            self.voice_tensor_cn = torch.load(f'{self.local_model_dir}/voices/{tts_params.voice}.pt', weights_only=True)
-            logger.info(f"[响应] 加载中文音色完成 - 耗时: {time.time() - start_time:.3f}秒")
-
             # 创建中文管道，并传入 en_callable
             logger.info(f"[响应] 加载管道: 开始创建中文管道...")
-            start_time_pipeline = time.time()
-            self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
-            logger.info(f"[响应] 管道加载完成 - 耗时: {time.time() - start_time_pipeline:.3f}秒")
+            # self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
+            self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=True, en_callable=self.en_callable)
+            logger.info(f"[响应] 管道加载完成 - 耗时: {time.time() - start_time:.3f}秒")
 
 
     async def _generate_audio(self, text: str, tts_params: TTSParams) -> np.ndarray:
@@ -157,6 +150,13 @@ class KokoroAPIV11():
         # load model
         await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir)
 
+        # 加载一个中文音色和一个英文音色
+        if self.voice != tts_params.voice:
+            logger.info(f"[响应] 开始加载中文音色：{tts_params.voice}...")
+            self.voice_tensor_cn = torch.load(f'{self.local_model_dir}/voices/{tts_params.voice}.pt', weights_only=True)
+            logger.info(f"[响应] 加载中文音色：{tts_params.voice}完成 - 耗时: {time.time() - start_time:.3f}秒")
+
+
         # load pipeline_en
         await self._load_pipeline_en()
 
@@ -169,6 +169,9 @@ class KokoroAPIV11():
         # 调用管道生成语音
         # 注意：这里假设管道的参数是 text, voice, speed, split_pattern
         # generator = self.pipeline(text, voice=tts_params.voice, speed=rate_, split_pattern=r'\n+')
+        if self.pipeline is None:
+            logger.error("管道未加载，无法生成语音")
+            raise RuntimeError("Pipeline not loaded")
         generator = self.pipeline(text, voice=self.voice_tensor_cn, speed=rate_, split_pattern=r'\n+')
 
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
@@ -178,6 +181,10 @@ class KokoroAPIV11():
 
         # 1. 访问 result.output.audio 获取 tensor
         # 根据日志: result.output 是 KModel.Output 对象，里面有个 audio 属性是 tensor
+        if result.output is None or result.output.audio is None:
+            logger.error("生成结果中没有 audio 属性，无法转换为 numpy 数组")
+            raise ValueError("生成结果中没有 audio 属性")
+
         audio_tensor = result.output.audio
 
         # 2. 将 PyTorch Tensor 转换为 NumPy 数组
@@ -186,8 +193,9 @@ class KokoroAPIV11():
 
         return audio_numpy
 
-    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> list[str]:
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
         logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
         audio_numpy = await self._generate_audio(text, tts_params)
 
         # 3. 处理维度
@@ -202,9 +210,12 @@ class KokoroAPIV11():
 
         # 5. 根据输出格式生成文件
         output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
-        output_file = convert_audio_to_format(audio_numpy, sample_rate, output_format)
-
-        return output_file
+        result = convert_ndarray_to_format(audio_numpy, sample_rate, output_format)
+        
+        if isinstance(result, str):
+            return result
+        else:
+            raise TypeError(f"期望返回 str 类型，但得到 {type(result).__name__}")
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
         logger.info(f"生成语音字节流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
@@ -213,13 +224,18 @@ class KokoroAPIV11():
         
         output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
                 
-        return convert_audio_format(
+        result = convert_audio_format(
             input_data=audio_numpy,
             input_type="numpy",
             output_format=output_format,
             output_type="bytes",
             sample_rate=24000
         )
+        
+        if isinstance(result, bytes):
+            return result
+        else:
+            raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
 

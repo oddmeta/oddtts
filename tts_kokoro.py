@@ -1,23 +1,15 @@
-import logging
-import os
-import subprocess
-import tempfile
-import uuid
-import asyncio
-import io
 import time
-import sys
+import asyncio
 
 from kokoro import KPipeline
-import soundfile as sf
 import numpy as np
-import torch
 
-from oddtts.oddtts_params import convert_audio_to_format
+from oddtts.oddtts_params import convert_ndarray_to_format
 from oddtts.oddtts_params import convert_audio_format
 from oddtts.oddtts_params import TTSParams
+from oddtts.oddtts_log import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 Kokoro_voices = {
     'Kokoro Voice (zh-CN, Xiaobei)': {'name': 'zf_xiaobei', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_xiaobei'}, 
@@ -85,6 +77,8 @@ class KokoroAPI():
         await self._load_pipeline(lang_, tts_params)
         
         start_time_generate = time.time()
+        if self.pipeline is None:
+            raise Exception("Kokoro pipeline未加载")
         generator = self.pipeline(text, voice=tts_params.voice, speed=rate_, split_pattern=r'\n+')
 
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
@@ -94,6 +88,8 @@ class KokoroAPI():
 
         # 1. 访问 result.output.audio 获取 tensor
         # 根据日志: result.output 是 KModel.Output 对象，里面有个 audio 属性是 tensor
+        if result.output is None:
+            raise Exception("Kokoro pipeline生成语音失败")
         audio_tensor = result.output.audio
 
         # 2. 将 PyTorch Tensor 转换为 NumPy 数组
@@ -102,8 +98,9 @@ class KokoroAPI():
 
         return audio_numpy
 
-    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> list[str]:
-        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}， 输出格式={tts_params.response_format}")
+
         audio_numpy = await self._generate_audio(text, tts_params)
 
         # 3. 处理维度
@@ -118,9 +115,12 @@ class KokoroAPI():
 
         # 5. 根据输出格式生成文件
         output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
-        output_file = convert_audio_to_format(audio_numpy, sample_rate, output_format)
-
-        return output_file
+        result = convert_ndarray_to_format(audio_numpy, sample_rate, output_format)
+        
+        if isinstance(result, str):
+            return result
+        else:
+            raise TypeError(f"期望返回 str 类型，但得到 {type(result).__name__}")
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
         logger.info(f"生成语音字节流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
@@ -129,13 +129,18 @@ class KokoroAPI():
         
         output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
                 
-        return convert_audio_format(
+        result = convert_audio_format(
             input_data=audio_numpy,
             input_type="numpy",
             output_format=output_format,
             output_type="bytes",
             sample_rate=24000
         )
+        
+        if isinstance(result, bytes):
+            return result
+        else:
+            raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
 

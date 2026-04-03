@@ -3,7 +3,7 @@ import subprocess
 import importlib.util
 import argparse
 from huggingface_hub import HfApi, snapshot_download
-from huggingface_hub.utils import RepositoryNotFoundError
+from huggingface_hub.errors import RepositoryNotFoundError
 import os
 
 def install_required_packages():
@@ -44,8 +44,8 @@ def check_and_download_model(repo_id, local_dir):
         snapshot_download(
             repo_id=repo_id,
             local_dir=local_dir,
-            resume_download=True,  # 支持断点续传
-            local_dir_use_symlinks=False # 避免符号链接问题
+            # resume_download=True,  # 支持断点续传
+            # local_dir_use_symlinks=False # 避免符号链接问题
         )
         print("✅ 模型下载完成！")
         

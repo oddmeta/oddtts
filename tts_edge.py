@@ -1,12 +1,11 @@
-import logging
-import os
-import subprocess
 import tempfile
 import edge_tts
+import time
 
 from oddtts.oddtts_params import new_uuid, TTSParams
+from oddtts.oddtts_log import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 class EdgeTTSAPI():
 
@@ -33,7 +32,7 @@ class EdgeTTSAPI():
 
         return voice_list
     
-    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> list[str]:
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
 
         logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
 
@@ -42,6 +41,8 @@ class EdgeTTSAPI():
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
         
+        start_time = time.time()
+
         communicate = edge_tts.Communicate(
             text, 
             tts_params.voice, 
@@ -57,6 +58,8 @@ class EdgeTTSAPI():
         # 生成音频
         await communicate.save(output_file)
 
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")
+
         return output_file
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
@@ -65,6 +68,8 @@ class EdgeTTSAPI():
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
         
+        start_time = time.time()
+
         communicate = edge_tts.Communicate(
             text, 
             tts_params.voice, 
@@ -77,8 +82,10 @@ class EdgeTTSAPI():
         audio_data = b""
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
-                audio_data += chunk["data"]
+                audio_data += chunk.get("data", b"")
         
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")
+
         return audio_data
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
@@ -87,6 +94,8 @@ class EdgeTTSAPI():
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
+        
+        start_time = time.time()
         
         communicate = edge_tts.Communicate(
             text, 
@@ -99,4 +108,6 @@ class EdgeTTSAPI():
         # 直接yield音频数据块，而不是收集后返回
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
-                yield chunk["data"]
+                yield chunk.get("data", b"")
+        
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")

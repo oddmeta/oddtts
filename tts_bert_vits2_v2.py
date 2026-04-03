@@ -1,12 +1,12 @@
 import os
 import requests
-import logging
 import yaml
 from uuid import uuid4
 from oddtts.oddtts_params import TTSParams
 # from plugins.GenshinVoice.pkg.audio_converter import convert_to_silk
+from oddtts.oddtts_log import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 bert_vits2_voices = [
     {
@@ -81,7 +81,7 @@ class BertVits2V2API:
 
         return None
 
-    async def download_audio(self, url, save_path):
+    async def download_audio(self, url: str, save_path: str) -> bool:
         try:
             audio_content = requests.get(url)
             if audio_content.status_code == 200:
@@ -93,7 +93,7 @@ class BertVits2V2API:
             logger.error(f"Error downloading audio: {str(e)}")
         return False
 
-    async def generate_audio(self, text):
+    async def generate_audio(self, text: str) -> str:
         session_hash = str(uuid4()).lower().split("-")[0]
         audio_url = self.get_audio_url(text, session_hash)
 
@@ -103,7 +103,7 @@ class BertVits2V2API:
         if audio_url:
             save_path = os.path.join(os.getcwd(), "./audio_temp", f"{session_hash}.mp3")
             # print(save_path)
-            success = self.download_audio(audio_url, save_path)
+            success = await self.download_audio(audio_url, save_path)
 
             if success:
                 # silk_path = convert_to_silk(save_path, "./audio_temp")
@@ -115,18 +115,18 @@ class BertVits2V2API:
                 logger.error("Failed to download audio.")
         else:
             logger.error(f"Failed to generate audio. audio_url={audio_url}")
-        return None
+        return ""
     
     async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
-        audio_path = self.generate_audio(text)
+        audio_path = await self.generate_audio(text)
         return audio_path
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> str:
-        audio_path = self.generate_audio(text)
+        audio_path = await self.generate_audio(text)
         return audio_path
-
+    
     async def generate_tts_stream(self, text: str, tts_params: TTSParams) -> bytes:
-        audio_path = self.generate_audio(text)
+        audio_path = await self.generate_audio(text)
         with open(audio_path, 'rb') as f:
             audio_data = f.read()
         return audio_data

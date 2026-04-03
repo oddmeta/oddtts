@@ -1,13 +1,11 @@
 import json
-import os
 import uuid
-
 import requests
-import logging
 
 from oddtts.oddtts_params import new_uuid, TTSParams
+from oddtts.oddtts_log import setup_logger
 
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 # url = "https://v2.genshinvoice.top/run/predict"
 # url_new = "https://v2.genshinvoice.top/v1/tts"
@@ -109,7 +107,7 @@ class BertVits2API():
     def __init__(self):
         pass
 
-    def request(self, req_params:dict[str,any]) -> str:
+    def request(self, req_params:dict[str, str]) -> str:
         logger.debug(f"params2={req_params}")
         # 合成语音
         body = json.dumps(req_params, ensure_ascii=False).encode('utf-8')
@@ -144,9 +142,9 @@ class BertVits2API():
 
         return file_name
 
-    def do_synthesis(self, text: str, speaker: str, noise: str, noisew: str, sdp_ratio: str) -> str:
+    async def do_synthesis(self, text: str, tts_params: TTSParams) -> str:  
         params = {
-            "data": [text, speaker, sdp_ratio, noise, noisew, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
+            "data": [text, tts_params.voice, tts_params.rate, tts_params.volume, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
             "event_data": None,
             "fn_index": 0,
             "session_hash": str(uuid.uuid4())
@@ -160,9 +158,9 @@ class BertVits2API():
         logger.debug(f"params={params_str_values}")  
         return self.request(req_params=params_str_values)  
 
-    def do_synthesis_test(self, text: str, speaker: str, noise: str, noisew: str, sdp_ratio: str) -> str:
+    async def do_synthesis_test(self, text: str, tts_params: TTSParams) -> str:
         params = {
-            "data": [text, speaker, sdp_ratio, noise, noisew, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
+            "data": [text, tts_params.voice, tts_params.rate, tts_params.volume, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
             "event_data": None,
             "fn_index": 0,
             "session_hash": str(uuid.uuid4())
@@ -174,19 +172,21 @@ class BertVits2API():
         return bert_vits2_voices
 
     async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
-        return self.do_synthesis(text, tts_params)
+        return await self.do_synthesis(text, tts_params)
 
-    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
-        return self.do_synthesis(text, tts_params)
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams):
+        return await self.do_synthesis(text, tts_params)
 
     async def generate_tts_stream(self, text: str, tts_params: TTSParams) -> bytes:
-        audio_path = self.do_synthesis(text, tts_params)
+        audio_path = await self.do_synthesis(text, tts_params)
         logger.debug(f"audio_path={audio_path}")
         with open(audio_path, 'rb') as f:
             audio_data = f.read()
         return audio_data
 
 if __name__ == '__main__':
+    import asyncio
     client = BertVits2API()
     tts_params = TTSParams(voice="流萤_ZH", rate=1, volume=1, pitch=1)
-    client.do_synthesis(text="晚上好", tts_params=tts_params)
+    audio_path = asyncio.run(client.do_synthesis(text="晚上好", tts_params=tts_params))
+    logger.debug(f"audio_path={audio_path}")
