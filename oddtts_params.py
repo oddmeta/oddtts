@@ -227,13 +227,13 @@ class ODDTTS_TYPE(Enum):
     def description(self):
         descriptions = {
             self.UNKNOWN: '未知类型',
-            self.ODDTTS_GPTSOVITS: 'OddGPT-SoVITS - 基于GPT-SoVITS的语音合成引擎',
-            self.ODDTTS_EDGETTS: 'EdgeTTS - 微软Edge浏览器的在线TTS服务',
-            self.ODDTTS_CHATTTS: 'ChatTTS - 专为对话场景设计的TTS引擎',
-            self.ODDTTS_BERTVITS2: 'Bert-VITS2 - 基于BERT和VITS的语音合成',
-            self.ODDTTS_BERTVITS2_V2: 'Bert-VITS2 V2 - Bert-VITS2的升级版本',
-            self.ODDTTS_KOKORO: 'Kokoro - 轻量级多语言TTS引擎',
-            self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本'
+            self.ODDTTS_GPTSOVITS: 'OddGPT-SoVITS - 基于GPT-SoVITS的语音合成引擎（需8G以上GPU）',
+            self.ODDTTS_EDGETTS: 'EdgeTTS - 微软Edge浏览器的在线TTS服务(无需GPU)',
+            self.ODDTTS_CHATTTS: 'ChatTTS - 专为对话场景设计的TTS引擎（需4G以上GPU）',
+            self.ODDTTS_BERTVITS2: 'Bert-VITS2 - 基于BERT和VITS的语音合成（需4G以上GPU）',
+            self.ODDTTS_BERTVITS2_V2: 'Bert-VITS2 V2 - Bert-VITS2的升级版本（需4G以上GPU）',
+            self.ODDTTS_KOKORO: 'Kokoro - 轻量级多语言TTS引擎（纯CPU，中文）',
+            self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）'
         }
         return descriptions[self]
 
