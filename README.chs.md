@@ -4,7 +4,28 @@
 
 # OddTTS - 多引擎TTS语音合成API封装(兼容OpenAI TTS API)
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2、GptSovits等，同时也支持OpenAI TTS API的调用。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ChatTTS、Bert-VITS2、GptSovits v2等，同时也支持OpenAI TTS API的调用。
+
+> 注意：
+> - 首次运行时，会自动下载模型文件。
+> - 模型文件大小：
+>   - Kokoro-82M-v1.1-zh模型：376MB左右。
+>   - EdgeTTS模型：0MB，无需下载模型。
+>   - ChatTTS模型：2.4GB（FP16精度）。
+>   - Bert-VITS2模型：2GB 左右（主干+BERT特征网络，每多一个语种需增加约1.3GB）。
+>   - GptSovits v2模型：2.5GB左右。
+> - 显存需求：
+>   - EdgeTTS模型：0MB。
+>   - Kokoro-82M-v1.1-zh模型：0MB（普通CPU可运行）。
+>   - ChatTTS模型：至少 2.5GB。
+>   - Bert-VITS2模型：至少 5GB。少样本微调训练，建议使用显存 24GB 以上的 GPU。
+>   - GptSovits v2模型：至少 8GB。少样本微调训练，建议使用显存 24GB/48GB 以上的 GPU。
+> - 国内用户建议使用镜像加速下载模型文件。
+>   - Windows: set HF_ENDPOINT=https://hf-mirror.com
+>   - Linux/MacOS: export HF_ENDPOINT=https://hf-mirror.com
+> - 模型文件大小较大，建议在有足够磁盘空间的环境运行，或者自定义模型路径（将 models/hf_home 改成你自己的路径）。
+>   - Windows: set HF_HOME=x:/models/hf_home
+>   - Linux/MacOS: export HF_HOME=/models/hf_home
 
 ## 一、前言
 
@@ -14,11 +35,11 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 
 考虑到TTS功能的用途广泛，就把它单独出来，并开源了。希望对TTS有需求的同学有帮助。
 
-<font color=red>**注：如果你要用除EdgeTTS外的其它几个TTS引擎，在安装使用OddTTS前，你需要先自行安装对应的TTS。**</font>
+<font color=red><b>注：如果你要用除EdgeTTS外的其它几个TTS引擎，在安装使用OddTTS前，你需要先自行安装对应的TTS。</b></font>
 
 ### 2. 为什么建议你选择OddTTS？
 
-- **多引擎支持**：集成了EdgeTTS、ChatTTS、Bert-VITS2、OddGptSovits等多种TTS引擎
+- **多引擎支持**：集成了EdgeTTS、Kokoro、ChatTTS、Bert-VITS2、GptSovits等多种TTS引擎
 - **多种调用方式**：支持文件路径返回、Base64编码返回、流式响应等多种输出方式
 - **友好的Web界面**：基于Gradio提供可视化操作界面
 - **RESTful API**：提供完整的REST API，便于集成到其他系统
@@ -30,12 +51,14 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 | 模型名称 | 原版最低运行显存 | 原版流畅运行显存 | 原版满血显存 | INT8 量化最低显存 | INT4 量化最低显存 | 纯 CPU 能否运行 | CPU 运行速度 |
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 依赖于你的网速 |
+| Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
 | ChatTTS | 2.5GB | 4GB | 6GB+ | 1.5GB | 1GB | ✅ 可以 | 较快 |
 | Bert-VITS2 | 5GB | 6GB | 8GB+ | 3GB | 2GB | ✅ 可以 | 中等 |
 | GPT-SoVITS v2 | 8GB | 10GB | 12GB+ | 4GB | 2.5GB | ❌ 不建议 | 较慢 |
-| Kokoro | 0GB | 0GB | 0GB+ | 0GB | 0GB | ✅ 可以 | 高 |
 
-> 小落同学用的是阿里云上99元每年的ECS, 只有2核2G，跑不动任何一个TTS模型，所以用的是EdgeTTS．
+> 小落同学使用情况
+> - Demo版本: 阿里云上99元每年的ECS（2核2G），跑不动任何一个TTS模型，所以用的是EdgeTTS．
+> - 本地版本：我自己电脑是一个十年前的老笔记本，用的是Kokoro-82M-v1.1-zh模型，纯CPU、且离线运行，运行速度也快。
 
 ## 二、快速开始
 
@@ -190,7 +213,7 @@ import requests
 API_BASE_URL = "http://localhost:9001"
 
 # 测试文本
-TEST_TEXT = \"Hello! 这是一个API测试。This is an API test.\"
+TEST_TEXT = \"欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!\"
 
 # 获取语音列表
 def test_api_voices():
@@ -245,6 +268,6 @@ def test_api_tts_file(voice_name):
 
 ## 六、许可证
 
-OddTTS 项目没有任何许可证。
-自由复制，没有任何附加条件！只需快乐编码！也欢迎提交问题和改进建议！
+MIT 许可证 - 详见 LICENSE 文件。商用、个人用、随便用。
 
+也欢迎提交问题和改进建议！

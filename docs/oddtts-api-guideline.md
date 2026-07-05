@@ -1,6 +1,8 @@
 # OddTTS API 接口文档
 
-OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 OpenAI Audio API 标准。支持多种 TTS 引擎，包括 OddGPT-SoVITS、EdgeTTS、ChatTTS、Bert-VITS2、Kokoro、Kokorov1.1(支持中英混合) 等。
+OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 `OpenAI Audio API` 标准。支持多种 TTS 引擎，包括 `EdgeTTS`、`Kokoro`、`Kokorov1.1`(支持中英混合)、`ChatTTS`、`Bert-VITS2`、`OddGPT-SoVITS v2` 等。
+
+<font color=red><b>OddTTS支持私有协议接口，也支持标准的 OpenAI Audio API 接口。没有特殊需求，推荐使用 OpenAI Audio API 接口。</b></font>
 
 ## 1. 系统管理 API
 
@@ -9,7 +11,7 @@ OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼�
 检查 API 服务是否正常运行。
 
 - 端点: GET `/oddtts/health`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 1.1.1 响应示例
 
@@ -27,7 +29,7 @@ OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼�
 获取当前 TTS 引擎支持的所有语音列表。
 
 - 端点: GET `/v1/audio/voice/list`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 2.1.1 响应示例
 
@@ -53,7 +55,7 @@ OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼�
 获取指定语音的详细信息。
 
 - 端点: GET `/v1/audio/voice/list/<voice_name>`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 2.2.1 请求参数
 
@@ -87,7 +89,7 @@ OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼�
 将文本转换为音频文件，返回文件路径。
 
 - 端点: POST `/api/oddtts/file`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 3.1.1 请求参数
 
@@ -132,7 +134,7 @@ curl http://localhost:8000/api/oddtts/file \
 将文本转换为音频，返回 Base64 编码的音频数据。
 
 - 端点: POST `/api/oddtts/base64`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 3.2.1 请求参数
 
@@ -153,7 +155,7 @@ curl http://localhost:8000/api/oddtts/file \
 将文本转换为音频，以流式方式返回音频数据。
 
 - 端点: POST `/api/oddtts/stream`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 3.3.1 请求参数
 
@@ -220,7 +222,7 @@ curl "http://localhost:8000/download?path=%2Ftmp%2Fabc123def456.wav" -o audio.mp
 获取可用的 TTS 模型列表。
 
 - 端点: GET `/v1/models`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 5.1.1 响应示例
 
@@ -247,7 +249,7 @@ curl "http://localhost:8000/download?path=%2Ftmp%2Fabc123def456.wav" -o audio.mp
 OpenAI 兼容的语音合成接口。
 
 - 端点: POST `/v1/audio/speech`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 5.2.1 请求参数
 
@@ -308,7 +310,7 @@ print(f"Audio saved to {speech_file_path}")
 获取所有支持的 TTS 引擎类型及当前配置。
 
 - 端点: GET `/api/config/tts-types`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 6.1.1 响应示例
 
@@ -372,7 +374,7 @@ print(f"Audio saved to {speech_file_path}")
 更新 TTS 引擎配置并自动生效。
 
 - 端点: POST `/api/config/save`
-- Content-Type: application/json
+- Content-Type: `application/json`
 
 #### 6.2.1 请求参数
 
@@ -449,7 +451,9 @@ curl http://localhost:8000/api/config/save \
 }
 ```
 
+
 | 错误状态码 | 含义 | 常见原因 |
+| ---------|------|--------|
 | 400 | Bad Request | 参数缺失、格式错误、不支持的音色 |
 | 401 | Unauthorized | API Key 无效（若启用了鉴权）|
 | 404 | Not Found | 语音不存在、文件不存在 |

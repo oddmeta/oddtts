@@ -4,7 +4,28 @@
 
 # OddTTS - Multi-Engine TTS Voice Synthesis API Wrapper (with OpenAI TTS API compatibility)
 
-OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, ChatTTS, Bert-VITS2, GptSovits, etc.) with a single set of interfaces, and also with OpenAI TTS API compatibility.
+OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, Kokoro-82M-v1.1-zh, ChatTTS, Bert-VITS2, GptSovits v2, etc.) with a single set of interfaces, and also with OpenAI TTS API compatibility.
+
+> Notes:
+> - Model files will be downloaded automatically on first run.
+> - Model file sizes:
+>   - Kokoro-82M-v1.1-zh model: ~376MB.
+>   - EdgeTTS model: 0MB, no model download required.
+>   - ChatTTS model: 2.4GB (FP16 precision).
+>   - Bert-VITS2 model: ~2GB (backbone + BERT feature network, each additional language adds ~1.3GB).
+>   - GptSovits v2 model: ~2.5GB.
+> - VRAM requirements:
+>   - EdgeTTS model: 0MB.
+>   - Kokoro-82M-v1.1-zh model: 0MB (runs on regular CPU).
+>   - ChatTTS model: at least 2.5GB.
+>   - Bert-VITS2 model: at least 5GB. For few-shot fine-tuning, GPU with 24GB+ VRAM is recommended.
+>   - GptSovits v2 model: at least 8GB. For few-shot fine-tuning, GPU with 24GB/48GB+ VRAM is recommended.
+> - Users in China are recommended to use mirror for faster downloads.
+>   - Windows: set HF_ENDPOINT=https://hf-mirror.com
+>   - Linux/MacOS: export HF_ENDPOINT=https://hf-mirror.com
+> - Model files are large, recommend running in an environment with sufficient disk space, or customize model path.
+>   - Windows: set HF_HOME=x:/models/hf_home
+>   - Linux/MacOS: export HF_HOME=/models/hf_home
 
 ## I. Preface
 
@@ -18,7 +39,7 @@ Considering the wide range of applications for TTS functionality, I separated it
 
 ### 2. Why Choose OddTTS?
 
-- **Multi-engine support**: Integrates EdgeTTS, ChatTTS, Bert-VITS2, OddGptSovits, and other TTS engines
+- **Multi-engine support**: Integrates EdgeTTS, Kokoro, ChatTTS, Bert-VITS2, OddGptSovits, and other TTS engines
 - **Multiple calling methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods
 - **User-friendly web interface**: Provides a visual operation interface based on Gradio
 - **RESTful API**: Offers a complete REST API for easy integration into other systems
@@ -30,12 +51,13 @@ Considering the wide range of applications for TTS functionality, I separated it
 | Model Name | Original Minimum VRAM | Original Smooth VRAM | Original Full VRAM | INT8 Quantized Minimum VRAM | INT4 Quantized Minimum VRAM | Can Run on Pure CPU | CPU Running Speed |
 |------------|----------|---------|-------|--------|-------|--------------------|------------------|
 | EdgeTTS    | 0GB      | 0GB     | 0GB   | 0GB    | 0GB   | ✅ Yes             | Depends on your network speed |
+| Kokoro     | 0GB      | 0GB     | 0GB   | 0GB    | 0GB   | ✅ Yes             | High             |
 | ChatTTS    | 2.5GB    | 4GB     | 6GB+  | 1.5GB  | 1GB   | ✅ Yes             | Fast             |
 | Bert-VITS2 | 5GB      | 6GB     | 8GB+  | 3GB    | 2GB   | ✅ Yes             | Moderate         |
 | GPT-SoVITS v2 | 8GB   | 10GB    | 12GB+ | 4GB    | 2.5GB | ❌ Not recommended | Slow             |
-| **Kokoro** | 0GB | 0GB | 0GB+ | 0GB | 0GB | ✅ Yes | Fast |
 
 > XiaoLuo Tongxue uses an Alibaba Cloud ECS server costing 99 yuan/year with only 2 cores and 2GB of memory, which can't run any TTS models, so it uses EdgeTTS.
+> On my own computer (a 10-year-old laptop), I use the Kokoro-82M-v1.1-zh model, running purely on CPU and offline, with fast performance.
 
 ## II. Quick Start
 
@@ -106,14 +128,14 @@ POST /api/oddtts/file
 - **Request Body**:
   ```json
   {
-    \"text\": \"Text to be converted to speech\",
-    \"voice\": \"Voice name\",
-    \"rate\": Speed adjustment (-50 to 50),
-    \"volume\": Volume adjustment (-50 to 50),
-    \"pitch\": Pitch adjustment (-50 to 50)
+    "text": "Text to be converted to speech",
+    "voice": "Voice name",
+    "rate": Speed adjustment (-50 to 50),
+    "volume": Volume adjustment (-50 to 50),
+    "pitch": Pitch adjustment (-50 to 50)
   }
   ```
-- **Return**: `{\"status\": \"success\", \"file_path\": \"Audio file path\", \"format\": \"mp3\"}`
+- **Return**: `{"status": "success", "file_path": "Audio file path", "format": "mp3"}`
 
 #### 5) Generate TTS Audio (Return Base64)
 
@@ -123,7 +145,7 @@ POST /api/oddtts/base64
 
 - **Function**: Generate TTS audio and return Base64 encoding
 - **Request Body**: Same as the file path API
-- **Return**: `{\"status\": \"success\", \"base64\": \"Base64 encoded audio data\", \"format\": \"mp3\"}`
+- **Return**: `{"status": "success", "base64": "Base64 encoded audio data", "format": "mp3"}`
 
 #### 6) Generate TTS Audio (Streaming Response)
 
@@ -142,16 +164,15 @@ GET /oddtts/health
 ```
 
 - **Function**: Check if the service is running normally
-- **Return**: `{\"status\": \"healthy\", \"message\": \"API service is running normally\"}`
+- **Return**: `{"status": "healthy", "message": "API service is running normally"}`
 
 ### 2. API Call Example
 
 Here's an example of calling the OddTTS API:
 
+#### 1) OpenAI TTS API Compatibility
 
-#### 1）OpenAI TTS API Compatibility
-
-```
+```python
 from openai import OpenAI
 
 base_url = "http://localhost:9001/v1"
@@ -159,7 +180,7 @@ model = "oddtts-1"
 api_key = "dummy"
 voice = "zf_xiaobei"
 
-text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
+text = "Welcome to follow my WeChat official account: OddMeta. Let's learn AI together, and catch up with the times! Good good study, day day up!"
 
 def test_openai_tts_api(voice_id):
     client = OpenAI(
@@ -177,7 +198,6 @@ def test_openai_tts_api(voice_id):
 
 if __name__ == "__main__":
     test_openai_tts_api(voice)
-
 ```
 
 #### 2) API Call Example
@@ -189,27 +209,27 @@ import requests
 API_BASE_URL = "http://localhost:9001"
 
 # Test text
-TEST_TEXT = \"Hello! This is an API test. 这是一个API测试。\"
+TEST_TEXT = "Hello! This is an API test. 这是一个API测试。"
 
 # Get voice list
 def test_api_voices():
-    response = requests.get(f\"{API_BASE_URL}/v1/audio/voice/list\")
+    response = requests.get(f"{API_BASE_URL}/v1/audio/voice/list")
     voices = response.json()
-    print(f\"Successfully obtained {len(voices)} voice options\")
+    print(f"Successfully obtained {len(voices)} voice options")
     return voices
 
 # Test generating TTS audio
 def test_api_tts_file(voice_name):
     payload = {
-        \"text\": TEST_TEXT,
-        \"voice\": voice_name,
-        \"rate\": 0,
-        \"volume\": 0,
-        \"pitch\": 0
+        "text": TEST_TEXT,
+        "voice": voice_name,
+        "rate": 0,
+        "volume": 0,
+        "pitch": 0
     }
-    response = requests.post(f\"{API_BASE_URL}/api/oddtts/file\", json=payload)
+    response = requests.post(f"{API_BASE_URL}/api/oddtts/file", json=payload)
     result = response.json()
-    print(f\"Audio file path: {result.get('file_path')}\")
+    print(f"Audio file path: {result.get('file_path')}")
 ```
 
 ## IV. Web Interface Usage
@@ -240,9 +260,10 @@ After starting the service, you can access `http://localhost:9001/` through your
 
 4. **Output format**        
    - Default output format: mp3
-   - You can specify other format such as wav, mp3 by setting  `response_format` parameter
+   - You can specify other format such as wav, mp3 by setting `response_format` parameter
 
 ## VI. License
 
-The OddTTS project has no license.
-Feel free to copy without any conditions! Just code happily! Contributions and improvement suggestions are also welcome!
+MIT License - See LICENSE file for details. Commercial, personal, feel free to use.
+
+Contributions and improvement suggestions are also welcome!

@@ -31,8 +31,8 @@ class KokoroAPIV11():
     def __init__(self) -> None:
         self.model = None
         self.local_repo_id = "hexgrad/Kokoro-82M-v1.1-zh"
-        self.local_model_dir = "ckpts"
         self.local_model_name = "kokoro-v1_1-zh.pth"
+        self._init_local_model_dir()
         self.default_text = "关注我的公众号：奥德元，一起学习 AI，一起追赶时代。Good good study, day day up."
         # 中文音色张量
         self.pipeline = None
@@ -42,6 +42,23 @@ class KokoroAPIV11():
         self.pipeline_en = None
         self.voice_en = "af_maple"
         self.voice_tensor_en = None
+
+    def _init_local_model_dir(self):
+        import os
+        possible_dirs = [
+            os.path.join(os.getcwd(), "ckpts"),
+            os.path.join(os.path.dirname(__file__), "ckpts"),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "ckpts"),
+        ]
+        for dir_path in possible_dirs:
+            config_path = os.path.join(dir_path, "config.json")
+            model_path = os.path.join(dir_path, self.local_model_name)
+            if os.path.exists(config_path) and os.path.exists(model_path):
+                self.local_model_dir = dir_path
+                logger.info(f"[响应] 找到模型目录: {self.local_model_dir}")
+                return
+        self.local_model_dir = "ckpts"
+        logger.info(f"[响应] 未找到本地模型目录，使用默认路径: {self.local_model_dir}")
     
     async def get_voices(self) -> list[dict[str, str]]:
         return list(KokoroV11_voices.values())
@@ -68,29 +85,36 @@ class KokoroAPIV11():
 
     async def _load_model(self, repo_id: str, local_dir: str, device: str = 'cpu') -> None:
         '''
-        加载模型，如果模型不存在则自动从 HuggingFace 下载
+        加载模型，优先使用本地 ckpts 目录，若本地不存在则尝试从 HuggingFace 下载
         '''
         if self.model is None:
             start_time = time.time()
             
-            try:
-                model_cache_path = try_to_load_from_cache(repo_id, filename="config.json")
-                if model_cache_path is None:
-                    logger.info(f"[响应] 模型 {repo_id} 不在本地缓存中，正在从 HuggingFace 下载...")
+            import os
+            local_config_path = os.path.join(local_dir, "config.json")
+            local_model_path = os.path.join(local_dir, self.local_model_name)
+            
+            if os.path.exists(local_config_path) and os.path.exists(local_model_path):
+                logger.info(f"[响应] 本地 ckpts 目录已存在模型文件，跳过 HuggingFace 下载")
+            else:
+                logger.info(f"[响应] 本地目录不存在模型文件，使用 snapshot_download 获取模型...")
+                try:
                     model_path = snapshot_download(repo_id=repo_id)
-                    logger.info(f"[响应] 模型已下载到: {model_path}")
-                else:
-                    logger.info(f"[响应] 模型 {repo_id} 已在本地缓存中")
-            except Exception as e:
-                logger.error(f"[响应] 下载模型时出错: {e}")
-                raise
+                    logger.info(f"[响应] 模型路径: {model_path}")
+                    local_config_path = os.path.join(model_path, "config.json")
+                    local_model_path = os.path.join(model_path, self.local_model_name)
+                    logger.info(f"[响应] config路径: {local_config_path}")
+                    logger.info(f"[响应] model路径: {local_model_path}")
+                except Exception as e:
+                    logger.error(f"[响应] 获取模型时出错: {e}")
+                    raise
 
-            with open(f"{local_dir}/config.json", 'r', encoding='utf-8') as r:
+            with open(local_config_path, 'r', encoding='utf-8') as r:
                 config = json.load(r)
 
             logger.info(f"[响应] 开始加载模型...")
-            self.model = KModel(repo_id=repo_id, config=config, model=f"{local_dir}/{self.local_model_name}").to(device).eval()
-            # self.model = KModel(model=f"{local_dir}/{self.local_model_name}").to(device).eval()
+            self.model = KModel(repo_id=repo_id, config=config, model=local_model_path).to(device).eval()
+            self.local_model_dir = os.path.dirname(local_model_path)
             logger.info(f"[响应] 模型加载完成 - 耗时: {time.time() - start_time:.3f}秒")
         else:
             logger.info(f"[响应] 模型已加载，无需重新加载")
@@ -104,11 +128,9 @@ class KokoroAPIV11():
             logger.info(f"[响应] 加载英文音色完成 - 耗时: {time.time() - start_time:.3f}秒")
 
         if self.pipeline_en is None:
-            # 2. 定义英文处理回调函数
-            # 这个函数会处理管道中识别出的英文片段
             logger.info(f"[响应] 加载管道: 开始创建英文管道...")
             start_time = time.time()
-            self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=False)
+            self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=self.model)
             logger.info(f"[响应] 创建英文管道完成 - 耗时: {time.time() - start_time:.3f}秒")
 
 
@@ -131,10 +153,8 @@ class KokoroAPIV11():
         '''
         if self.pipeline is None:
             start_time = time.time()
-            # 创建中文管道，并传入 en_callable
             logger.info(f"[响应] 加载管道: 开始创建中文管道...")
-            # self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
-            self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=True, en_callable=self.en_callable)
+            self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
             logger.info(f"[响应] 管道加载完成 - 耗时: {time.time() - start_time:.3f}秒")
 
 
