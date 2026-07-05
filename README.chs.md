@@ -171,9 +171,19 @@ GET /oddtts/health
 
 ### 2. API调用示例
 
-以下是一个OddTTS的API调用的示例：
+以下是一些OddTTS的API调用的示例。
 
-#### 1）OpenAI 兼容接口
+> 其中`voice`需要先从后端获取语音列表，再填入当前模型支持的语音名称（接口是：`/v1/audio/voice/list`），<font color=red>不同的模型的voice音色是不一样的</font>。
+
+#### 1）使用curl调用API
+
+```bash
+curl.exe -X POST http://localhost:9001/api/oddtts/file ^
+  -H "Content-Type: application/json" ^
+  -d "{\"text\": \"欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！\", \"voice\": \"zm_011\", \"rate\": 0, \"volume\": 0, \"pitch\": 0}"
+```
+
+#### 2）使用OpenAI库调用API
 
 ```
 from openai import OpenAI
@@ -181,7 +191,7 @@ from openai import OpenAI
 base_url = "http://localhost:9001/v1"
 model = "oddtts-1"
 api_key = "dummy"
-voice = "zf_xiaobei"
+voice = "zm_011"
 
 text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
 
@@ -204,7 +214,7 @@ if __name__ == "__main__":
 
 ```
 
-#### 2）使用requests库调用API
+#### 3）使用requests库调用API
 
 ```python
 import requests
@@ -234,6 +244,31 @@ def test_api_tts_file(voice_name):
     response = requests.post(f\"{API_BASE_URL}/api/oddtts/file\", json=payload)
     result = response.json()
     print(f\"音频文件路径: {result.get('file_path')}\")
+```
+
+#### 4）使用JavaScript调用API
+
+```javascript
+async function generateTTS(text, voice) {
+    const response = await fetch('http://localhost:9001/api/oddtts/file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            text: text,
+            voice: voice,
+            rate: 0,
+            volume: 0,
+            pitch: 0
+        })
+    });
+    const result = await response.json();
+    console.log('音频文件路径:', result.file_path);
+    return result;
+}
+
+generateTTS('欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！', 'zm_011');
 ```
 
 ## 四、Web界面使用

@@ -168,9 +168,19 @@ GET /oddtts/health
 
 ### 2. API Call Example
 
-Here's an example of calling the OddTTS API:
+Here are some examples of calling the OddTTS API:
 
-#### 1) OpenAI TTS API Compatibility
+> The `voice` parameter needs to be obtained from the backend voice list first, then fill in a voice name supported by the current model (API: `/v1/audio/voice/list`). <font color=red>**Different models have different voice options.**</font>
+
+#### 1) Using curl to Call API
+
+```bash
+curl.exe -X POST http://localhost:9001/api/oddtts/file ^
+  -H "Content-Type: application/json" ^
+  -d "{\"text\": \"Welcome to follow my WeChat official account: OddMeta. Let's learn AI together!\", \"voice\": \"zm_011\", \"rate\": 0, \"volume\": 0, \"pitch\": 0}"
+```
+
+#### 2) Using OpenAI Library to Call API
 
 ```python
 from openai import OpenAI
@@ -178,7 +188,7 @@ from openai import OpenAI
 base_url = "http://localhost:9001/v1"
 model = "oddtts-1"
 api_key = "dummy"
-voice = "zf_xiaobei"
+voice = "zm_011"
 
 text = "Welcome to follow my WeChat official account: OddMeta. Let's learn AI together, and catch up with the times! Good good study, day day up!"
 
@@ -200,7 +210,7 @@ if __name__ == "__main__":
     test_openai_tts_api(voice)
 ```
 
-#### 2) API Call Example
+#### 3) Using requests Library to Call API
 
 ```python
 import requests
@@ -209,7 +219,7 @@ import requests
 API_BASE_URL = "http://localhost:9001"
 
 # Test text
-TEST_TEXT = "Hello! This is an API test. 这是一个API测试。"
+TEST_TEXT = "Welcome to follow my WeChat official account: OddMeta. Let's learn AI together, and catch up with the times! Good good study, day day up!"
 
 # Get voice list
 def test_api_voices():
@@ -230,6 +240,31 @@ def test_api_tts_file(voice_name):
     response = requests.post(f"{API_BASE_URL}/api/oddtts/file", json=payload)
     result = response.json()
     print(f"Audio file path: {result.get('file_path')}")
+```
+
+#### 4) Using JavaScript to Call API
+
+```javascript
+async function generateTTS(text, voice) {
+    const response = await fetch('http://localhost:9001/api/oddtts/file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            text: text,
+            voice: voice,
+            rate: 0,
+            volume: 0,
+            pitch: 0
+        })
+    });
+    const result = await response.json();
+    console.log('Audio file path:', result.file_path);
+    return result;
+}
+
+generateTTS('Welcome to follow my WeChat official account: OddMeta. Let\'s learn AI together!', 'zm_011');
 ```
 
 ## IV. Web Interface Usage
