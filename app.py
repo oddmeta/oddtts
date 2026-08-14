@@ -3,7 +3,7 @@ import subprocess
 import importlib.util
 import argparse
 import asyncio
-from oddtts.utils.model_utils import download_model, check_model_exists
+from utils.model_utils import download_model, check_model_exists
 import os
 
 def install_required_packages():
@@ -65,8 +65,8 @@ def main():
     args = parser.parse_args()
     
     try:
-        from oddtts.oddtts import app
-        import oddtts.oddtts_config as config
+        from oddtts import app
+        import oddtts_config as config
 
         asciiart = r"""
  OOO   dddd   dddd   M   M  eeeee  ttttt   aaaaa
@@ -94,7 +94,7 @@ O   O  d   d  d   d  M   M  e        t    a     a
         if config.oddtts_cfg.get('preload_model', False):
             print("预加载模型已启用，开始预热...")
             try:
-                from oddtts.router.api import single_tts_driver
+                from router.api import single_tts_driver
                 asyncio.run(single_tts_driver.preload())
                 print("模型预加载完成")
             except Exception as e:

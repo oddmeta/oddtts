@@ -65,7 +65,7 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 ### 1. 安装OddTTS
 
 ```bash
-pip install -i https://pypi.org/simple/ oddtts
+pip install -i oddtts
 ```
 
 ### 2. 启动 OddTTS

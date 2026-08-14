@@ -1,17 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams
+from oddtts_params import ODDTTS_TYPE, TTSParams
+from oddtts_log import setup_logger
 
-from oddtts.tts_edge import EdgeTTSAPI
-from oddtts.tts_bert_vits2 import BertVits2API
-from oddtts.tts_bert_vits2_v2 import BertVits2V2API
-from oddtts.tts_odd_gptsovits import OddGptSovitsAPI
-from oddtts.tts_chattts import ChatTTSAPI
-from oddtts.tts_kokoro import KokoroAPI
-from oddtts.tts_kokoro_v11 import KokoroAPIV11
-
-from oddtts.oddtts_log import setup_logger
+from .tts_edge import EdgeTTSAPI
+from .tts_bert_vits2 import BertVits2API
+from .tts_bert_vits2_v2 import BertVits2V2API
+from .tts_odd_gptsovits import OddGptSovitsAPI
+from .tts_chattts import ChatTTSAPI
+from .tts_kokoro import KokoroAPI
+from .tts_kokoro_v11 import KokoroAPIV11
 
 logger = setup_logger(__name__)
 

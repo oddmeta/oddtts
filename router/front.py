@@ -2,9 +2,7 @@
 from flask import Blueprint, render_template, request, session, redirect, send_from_directory, send_file
 from werkzeug.utils import secure_filename
 
-import oddtts.oddtts_config as config
-
-# from oddtts.log import logger
+import oddtts_config as config
 
 bp = Blueprint('front', __name__, url_prefix='')
 

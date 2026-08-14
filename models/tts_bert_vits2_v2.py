@@ -2,9 +2,10 @@ import os
 import requests
 import yaml
 from uuid import uuid4
-from oddtts.oddtts_params import TTSParams
+
 # from plugins.GenshinVoice.pkg.audio_converter import convert_to_silk
-from oddtts.oddtts_log import setup_logger
+from oddtts_params import TTSParams
+from oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
 

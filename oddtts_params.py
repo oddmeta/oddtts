@@ -9,7 +9,7 @@ import numpy as np
 import soundfile as sf
 from pydub import AudioSegment
 
-# from oddtts.oddtts_log import setup_logger
+# from .oddtts_log import setup_logger
 # logger = setup_logger(__name__)
 
 class TTSParams:
