@@ -2,7 +2,7 @@
 
 [TOC]
 
-# OddTTS - Multi-Engine TTS Speech Synthesis API Wrapper (Compatible with OpenAI TTS API)
+# OddTTS - Multi-Engine TTS Speech Synthesis API Server (Compatible with OpenAI TTS API)
 
 OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ChatTTS, Bert-VITS2, GptSovits v2, etc., and also supports OpenAI TTS API calls.
 

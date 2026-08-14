@@ -1,41 +1,22 @@
-import os
-import subprocess
 import tempfile
 import edge_tts
+import time
 
-from oddtts_params import new_uuid, TTSParams
-from oddtts_log import setup_logger
+from oddtts.oddtts_params import new_uuid, TTSParams
+from oddtts.oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
 
-TTS_edge_voices = [
-    {"id": "zh-CN-XiaoxiaoNeural", "name": "xiaoxiao"},
-    {"id": "zh-CN-XiaoyiNeural", "name": "xiaoyi"},
-    {"id": "zh-CN-YunjianNeural", "name": "yunjian"},
-    {"id": "zh-CN-YunxiNeural", "name": "yunxi"},
-    {"id": "zh-CN-YunxiaNeural", "name": "yunxia"},
-    {"id": "zh-CN-YunyangNeural", "name": "yunyang"},
-    {"id": "zh-CN-liaoning-XiaobeiNeural", "name": "xiaobei"},
-    {"id": "zh-CN-shaanxi-XiaoniNeural", "name": "xiaoni"},
-    {"id": "zh-HK-HiuGaaiNeural", "name": "hiugaai"},
-    {"id": "zh-HK-HiuMaanNeural", "name": "hiumaan"},
-    {"id": "zh-HK-WanLungNeural", "name": "wanlung"},
-    {"id": "zh-TW-HsiaoChenNeural", "name": "hsiaochen"},
-    {"id": "zh-TW-HsiaoYuNeural", "name": "hsioayu"},
-    {"id": "zh-TW-YunJheNeural", "name": "yunjhe"}
-]
-
-class MeloTTSAPI():
+class EdgeTTSAPI():
 
     def __init__(self) -> None:
         pass
 
     async def preload(self) -> None:
-        '''MeloTTS 当前基于在线服务，无需预加载模型'''
+        '''EdgeTTS 为在线服务，无需预加载模型'''
         pass
     
     async def get_voices(self) -> list[dict[str, str]]:
-        # return TTS_edge_voices
         voice_list = []
         voices = await edge_tts.list_voices()
         for v in voices:
@@ -56,11 +37,16 @@ class MeloTTSAPI():
         return voice_list
     
     async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
         # 确保参数格式正确，包含正负符号
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
         
+        start_time = time.time()
+
         communicate = edge_tts.Communicate(
             text, 
             tts_params.voice, 
@@ -76,13 +62,18 @@ class MeloTTSAPI():
         # 生成音频
         await communicate.save(output_file)
 
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")
+
         return output_file
 
     async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
         
+        start_time = time.time()
+
         communicate = edge_tts.Communicate(
             text, 
             tts_params.voice, 
@@ -97,12 +88,18 @@ class MeloTTSAPI():
             if chunk["type"] == "audio":
                 audio_data += chunk.get("data", b"")
         
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")
+
         return audio_data
     
     async def generate_tts_stream(self, text: str, tts_params: TTSParams):
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+        
         rate_str = f"{tts_params.rate:+d}%"
         volume_str = f"{tts_params.volume:+d}%"
         pitch_str = f"{tts_params.pitch:+d}Hz"
+        
+        start_time = time.time()
         
         communicate = edge_tts.Communicate(
             text, 
@@ -116,4 +113,5 @@ class MeloTTSAPI():
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 yield chunk.get("data", b"")
-
+        
+        logger.info(f"生成语音文件耗时：{time.time() - start_time:.4f}秒")

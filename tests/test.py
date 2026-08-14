@@ -3,7 +3,7 @@ import base64
 import time
 import os
 
-import oddtts_config as config
+import oddtts.oddtts_config as config
 
 # 配置API基础URL - 调整路径格式
 API_BASE_URL = "http://" + config.HOST + ":" + str(config.PORT)

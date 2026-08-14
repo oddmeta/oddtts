@@ -9,8 +9,8 @@ import soundfile as sf
 import numpy as np
 import torch
 
-from oddtts_params import new_uuid, TTSParams
-from oddtts_log import setup_logger
+from oddtts.oddtts_params import new_uuid, TTSParams
+from oddtts.oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
 

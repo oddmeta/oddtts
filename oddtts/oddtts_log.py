@@ -3,7 +3,7 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-from oddtts_config import log_file, log_path, log_level
+from oddtts.oddtts_config import log_file, log_path, log_level
 
 def setup_logger(name=None):
     """

@@ -3,8 +3,13 @@ import subprocess
 import importlib.util
 import argparse
 import asyncio
-from utils.model_utils import download_model, check_model_exists
 import os
+import platform
+import webbrowser
+
+from oddtts.utils.model_utils import download_model, check_model_exists
+from .oddtts_flask import flask_app
+from . import oddtts_config as config
 
 def install_required_packages():
     required_packages = [
@@ -65,8 +70,6 @@ def main():
     args = parser.parse_args()
     
     try:
-        from oddtts import app
-        import oddtts_config as config
 
         asciiart = r"""
  OOO   dddd   dddd   M   M  eeeee  ttttt   aaaaa
@@ -94,14 +97,19 @@ O   O  d   d  d   d  M   M  e        t    a     a
         if config.oddtts_cfg.get('preload_model', False):
             print("预加载模型已启用，开始预热...")
             try:
-                from router.api import single_tts_driver
+                from oddtts.router.api import single_tts_driver
                 asyncio.run(single_tts_driver.preload())
                 print("模型预加载完成")
             except Exception as e:
                 print(f"模型预加载失败: {e}")
                 print("程序将继续启动，模型将在首次请求时尝试加载。")
 
-        app.run(host=host, port=port, debug=config.Debug)
+        if platform.system() == 'Windows':
+            url = f"http://{host}:{port}/"
+            import threading
+            threading.Timer(1.5, lambda u=url: webbrowser.open(u)).start()
+
+        flask_app.run(host=host, port=port, debug=config.Debug)
     except Exception as e:
         print(f"Failed to start application: {e}")
         sys.exit(1)

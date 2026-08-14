@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from oddtts_params import ODDTTS_TYPE, TTSParams
-from oddtts_log import setup_logger
+from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams
+from oddtts.oddtts_log import setup_logger
 
 from .tts_edge import EdgeTTSAPI
 from .tts_bert_vits2 import BertVits2API

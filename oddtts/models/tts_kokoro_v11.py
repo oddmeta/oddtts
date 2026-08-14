@@ -7,9 +7,9 @@ from kokoro import KPipeline, KModel
 import numpy as np
 import torch
 
-from utils.model_utils import download_model
-from oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
-from oddtts_log import setup_logger
+from oddtts.utils.model_utils import download_model
+from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
 
