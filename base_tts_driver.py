@@ -54,9 +54,15 @@ class BaseTTS(ABC):
         async for chunk in self.client.generate_tts_stream(text=text, tts_params=tts_params):
             yield chunk
 
+    async def preload(self) -> None:
+        '''预加载模型（可选，由具体 client 决定是否实现）'''
+        if self.client is not None and hasattr(self.client, 'preload'):
+            await self.client.preload()
+
 class OddTTSDriver:
     '''TTS驱动类'''
     def __init__(self, type: ODDTTS_TYPE):
+        self.type = type
         self.strategies: dict[ODDTTS_TYPE, BaseTTS] = {}
         self.tts = self.get_strategy(type)
 
@@ -90,6 +96,12 @@ class OddTTSDriver:
 
         async for chunk in self.tts.generate_tts_stream(text=text, tts_params=tts_params):
             yield chunk
+
+    async def preload(self) -> None:
+        '''预加载当前 TTS 引擎的模型'''
+        if self.tts is None:
+            self.tts = self.get_strategy(self.type)
+        await self.tts.preload()
 
     def get_strategy(self, tts_type: ODDTTS_TYPE) -> BaseTTS:
         tts = BaseTTS()

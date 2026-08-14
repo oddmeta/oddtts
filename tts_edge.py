@@ -11,6 +11,10 @@ class EdgeTTSAPI():
 
     def __init__(self) -> None:
         pass
+
+    async def preload(self) -> None:
+        '''EdgeTTS 为在线服务，无需预加载模型'''
+        pass
     
     async def get_voices(self) -> list[dict[str, str]]:
         voice_list = []

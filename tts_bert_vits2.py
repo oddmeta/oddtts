@@ -107,6 +107,10 @@ class BertVits2API():
     def __init__(self):
         pass
 
+    async def preload(self) -> None:
+        '''BertVits2 为在线服务，无需预加载模型'''
+        pass
+
     def request(self, req_params:dict[str, str]) -> str:
         logger.debug(f"params2={req_params}")
         # 合成语音

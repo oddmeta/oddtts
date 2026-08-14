@@ -128,7 +128,8 @@ POST /api/oddtts/file
 
 - **功能**：生成TTS音频并返回文件路径
 - **请求体**：
-  ```json
+
+```json
   {
     \"text\": \"要转换为语音的文本\",
     \"voice\": \"语音名称\",
@@ -136,7 +137,8 @@ POST /api/oddtts/file
     \"volume\": 音量调整(-50到50),
     \"pitch\": 音调调整(-50到50)
   }
-  ```
+```
+
 - **返回**：`{\"status\": \"success\", \"file_path\": \"音频文件路径\", \"format\": \"mp3\"}`
 
 #### 5）生成TTS音频（返回Base64）

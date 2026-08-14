@@ -2,6 +2,7 @@ import sys
 import subprocess
 import importlib.util
 import argparse
+import asyncio
 from huggingface_hub import HfApi, snapshot_download
 from huggingface_hub.errors import RepositoryNotFoundError
 import os
@@ -92,6 +93,17 @@ O   O  d   d  d   d  M   M  e        t    a     a
 
         # 1. 设置 Hugging Face 镜像地址 (国内用户推荐)
         os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+
+        # 2. 根据配置决定是否预加载模型
+        if config.oddtts_cfg.get('preload_model', False):
+            print("预加载模型已启用，开始预热...")
+            try:
+                from oddtts.router.api import single_tts_driver
+                asyncio.run(single_tts_driver.preload())
+                print("模型预加载完成")
+            except Exception as e:
+                print(f"模型预加载失败: {e}")
+                print("程序将继续启动，模型将在首次请求时尝试加载。")
 
         app.run(host=host, port=port, debug=config.Debug)
     except Exception as e:

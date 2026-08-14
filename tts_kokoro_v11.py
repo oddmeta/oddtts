@@ -60,6 +60,12 @@ class KokoroAPIV11():
         self.local_model_dir = "ckpts"
         logger.info(f"[响应] 未找到本地模型目录，使用默认路径: {self.local_model_dir}")
     
+    async def preload(self, device: str = 'cpu') -> None:
+        '''预加载模型：触发模型检测/下载并加载到内存'''
+        logger.info("[预加载] 开始预加载 Kokoro v1.1 模型...")
+        await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir, device=device)
+        logger.info("[预加载] Kokoro v1.1 模型预加载完成")
+
     async def get_voices(self) -> list[dict[str, str]]:
         return list(KokoroV11_voices.values())
 

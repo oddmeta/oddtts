@@ -37,6 +37,10 @@ class BertVits2V2API:
         if character:
             self.config["character"] = character
 
+    async def preload(self) -> None:
+        '''BertVits2 V2 为在线服务，无需预加载模型'''
+        pass
+
     async def get_voices(self) -> list:
         return bert_vits2_voices
 

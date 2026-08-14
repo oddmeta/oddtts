@@ -15,6 +15,10 @@ chat_tts_voices = [
 
 class ChatTTSAPI():
 
+    async def preload(self) -> None:
+        '''ChatTTS 当前未启用，无需预加载模型'''
+        pass
+
     # def inference(text: str):
 
     async def create_audio(self, text: str, voice: str) -> str:

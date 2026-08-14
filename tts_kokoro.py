@@ -28,6 +28,14 @@ class KokoroAPI():
         self.pipeline = None
         pass
     
+    async def preload(self) -> None:
+        '''预加载模型：触发模型检测/下载并加载到内存'''
+        logger.info("[预加载] 开始预加载 Kokoro 模型...")
+        await self._load_pipeline(lang_='z', tts_params=TTSParams(
+            voice="zf_xiaobei", rate=0, volume=0, pitch=0, locale="zh-CN", response_format="wav"
+        ))
+        logger.info("[预加载] Kokoro 模型预加载完成")
+
     async def get_voices(self) -> list[dict[str, str]]:
         return list(Kokoro_voices.values())
 

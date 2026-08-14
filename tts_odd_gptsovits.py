@@ -74,6 +74,13 @@ class OddGptSovitsAPI():
 
         return audio_numpy
 
+    async def preload(self) -> None:
+        '''预加载模型：触发模型检测/下载并加载到内存'''
+        logger.info("[预加载] 开始预加载 GPT-SoVITS 模型...")
+        if self.pipeline is None:
+            self.pipeline = KPipeline(lang_code='z')
+        logger.info("[预加载] GPT-SoVITS 模型预加载完成")
+
     async def get_voices(self) -> list[dict[str, str]]:
         return list(oddtts_voices.values())
     
