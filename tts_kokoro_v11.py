@@ -6,7 +6,7 @@ import sys
 from kokoro import KPipeline, KModel
 import numpy as np
 import torch
-from huggingface_hub import snapshot_download, try_to_load_from_cache
+from oddtts.utils.model_utils import download_model
 
 from oddtts.oddtts_params import convert_ndarray_to_format
 from oddtts.oddtts_params import convert_audio_format
@@ -103,9 +103,9 @@ class KokoroAPIV11():
             if os.path.exists(local_config_path) and os.path.exists(local_model_path):
                 logger.info(f"[响应] 本地 ckpts 目录已存在模型文件，跳过 HuggingFace 下载")
             else:
-                logger.info(f"[响应] 本地目录不存在模型文件，使用 snapshot_download 获取模型...")
+                logger.info(f"[响应] 本地目录不存在模型文件，使用通用接口获取模型...")
                 try:
-                    model_path = snapshot_download(repo_id=repo_id)
+                    model_path = download_model(repo_id=repo_id)
                     logger.info(f"[响应] 模型路径: {model_path}")
                     local_config_path = os.path.join(model_path, "config.json")
                     local_model_path = os.path.join(model_path, self.local_model_name)

@@ -3,8 +3,7 @@ import subprocess
 import importlib.util
 import argparse
 import asyncio
-from huggingface_hub import HfApi, snapshot_download
-from huggingface_hub.errors import RepositoryNotFoundError
+from oddtts.utils.model_utils import download_model, check_model_exists
 import os
 
 def install_required_packages():
@@ -27,36 +26,33 @@ def install_required_packages():
 def check_and_download_model(repo_id, local_dir):
     """
     检查模型是否存在，如果存在则下载到指定目录。
-    
+    支持 HuggingFace 和 ModelScope 双源自动切换。
+
     Args:
-        repo_id (str): Hugging Face 模型的 ID，例如 "hexgrad/Kokoro-82M"。
+        repo_id (str): 模型仓库 ID，例如 "hexgrad/Kokoro-82M"。
         local_dir (str): 模型下载的本地目录。
     """
-    api = HfApi()
-    
     print(f"正在检查模型: {repo_id}")
     try:
-        # 尝试获取模型信息
-        api.model_info(repo_id=repo_id)
-        print(f"✅ 模型 '{repo_id}' 存在！")
-        
-        # 模型存在，开始下载
+        # 检查模型是否存在（优先检查 HuggingFace）
+        if check_model_exists(repo_id, source="huggingface"):
+            print(f"✅ 模型 '{repo_id}' 存在！")
+        else:
+            print(f"⚠️ 模型 '{repo_id}' 在 HuggingFace 上未找到，尝试 ModelScope...")
+
+        # 使用通用接口下载，自动处理源切换
         print(f"开始下载模型到: {local_dir}")
-        snapshot_download(
+        download_model(
             repo_id=repo_id,
             local_dir=local_dir,
             # resume_download=True,  # 支持断点续传
             # local_dir_use_symlinks=False # 避免符号链接问题
         )
         print("✅ 模型下载完成！")
-        
-    except RepositoryNotFoundError:
-        # 捕获模型不存在的错误
-        print(f"❌ 错误：模型 '{repo_id}' 在 Hugging Face Hub 上不存在。")
-        print("请检查模型 ID 是否拼写正确。")
+
     except Exception as e:
-        # 捕获其他可能的错误，如网络问题
-        print(f"❌ 发生未知错误: {e}")
+        # 捕获所有可能的错误：模型不存在、网络问题、依赖缺失等
+        print(f"❌ 模型下载失败: {e}")
 
 
 def main():
@@ -80,7 +76,7 @@ O   O  d   d  d   d  M   M  e        t    a     a
  OOO   dddd   dddd   M   M  eeeee    t    a     a
 
  ⭐️ Open Source: https://github.com/oddmeta/oddtts
- 📖 Documentation: https://docs.oddmeta.net/
+ 📖 Documentation: https://oddmeta.net/docs/oddtts
         """
         
         print(asciiart)
