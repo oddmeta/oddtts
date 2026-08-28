@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oddtts"
+version = "1.2.18"
+description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
+readme = "README.md"
+license = "MIT"
+
+authors = [
+    {name = "Catherine Wei", email = "catherine@oddmeta.com"},
+    {name = "Jacky Wei", email = "jacky@oddmeta.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=2.0.0",
+    "flask-cors>=3.0.0",
+    "edge-tts",
+    "pydub>=0.25.1",
+    "kokoro",
+    "ordered-set",
+    "torch",
+    "soundfile",
+    "numpy",
+    "requests",
+    "misaki[zh]",
+    "ffmpeg",
+    "transformers>=4.57.0,<5",
+    "onnxruntime",
+    "modelscope>=1.20.0",
+    "huggingface-hub>=0.20.0",
+]
+
+[project.urls]
+Homepage = "https://oddmeta.net/docs/oddtts"
+Repository = "https://github.com/oddmeta/oddtts"
+Issues = "https://github.com/oddmeta/oddtts/issues"
+
+[project.scripts]
+oddtts = "oddtts.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oddtts*"]
+
+[tool.setuptools.package-data]
+oddtts = [
+    "static/*.ico",
+    "static/*.mp3",
+    "static/*.wav",
+    "static/*.json",
+    "static/*.png",
+    "static/*.txt",
+    "templates/*.html",
+    "docs/*",
+    "router/*.py",
+]
