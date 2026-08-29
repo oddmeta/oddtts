@@ -9,7 +9,7 @@ soundfile
 numpy
 requests
 misaki[zh]
-ffmpeg
+PyYAML
 transformers>=4.57.0,<5
 onnxruntime
 modelscope>=1.20.0

@@ -219,6 +219,10 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_KOKORO = 6
     # Kokoro v1.1
     ODDTTS_KOKORO_V1_1 = 7
+    # Audio8 0.1B ONNX INT
+    ODDTTS_AUDIO8_0_1B_ONNX_INT8 = 8
+    # Audio8 0.6B ONNX INT4
+    ODDTTS_AUDIO8_0_6B_ONNX_INT4 = 9
 
     @property
     def description(self):
@@ -230,7 +234,9 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_BERTVITS2: 'Bert-VITS2 - 基于BERT和VITS的语音合成（需4G以上GPU）',
             self.ODDTTS_BERTVITS2_V2: 'Bert-VITS2 V2 - Bert-VITS2的升级版本（需4G以上GPU）',
             self.ODDTTS_KOKORO: 'Kokoro - 轻量级多语言TTS引擎（纯CPU，中文）',
-            self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）'
+            self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）',
+            self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'Audio8 0.1B ONNX INT8 - Audio8 0.1B ONNX INT8 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'Audio8 0.6B ONNX INT4 - Audio8 0.6B ONNX INT4 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）'
         }
         return descriptions[self]
 
@@ -244,7 +250,9 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_BERTVITS2: True,
             self.ODDTTS_BERTVITS2_V2: True,
             self.ODDTTS_KOKORO: True,
-            self.ODDTTS_KOKORO_V1_1: True
+            self.ODDTTS_KOKORO_V1_1: True,
+            self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: True,
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: True
         }
         return enabled[self]
 

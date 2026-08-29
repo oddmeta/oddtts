@@ -17,7 +17,7 @@ oddtts_cfg = {
     ## concurrent threads, 0 auto detect CPU cores
     "concurrent_thread": 0,
     ## tts type
-    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO_V1_1,
+    "tts_type": ODDTTS_TYPE.ODDTTS_AUDIO8_0_6B_ONNX_INT4,
     "local_model_dir": "ckpts",
     ## HTTPS configuration
     "enable_https": False,

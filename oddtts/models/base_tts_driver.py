@@ -11,6 +11,8 @@ from .tts_odd_gptsovits import OddGptSovitsAPI
 from .tts_chattts import ChatTTSAPI
 from .tts_kokoro import KokoroAPI
 from .tts_kokoro_v11 import KokoroAPIV11
+from .tts_audio8_0_1b_onnx_int8 import Audio8_0_1b_OnnxInt8_API
+from .tts_audio8_0_6b_onnx_int4 import Audio8_0_6b_OnnxInt4_API
 
 logger = setup_logger(__name__)
 
@@ -124,6 +126,12 @@ class OddTTSDriver:
             return tts
         elif tts_type == ODDTTS_TYPE.ODDTTS_KOKORO_V1_1:
             tts.client = KokoroAPIV11()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_AUDIO8_0_1B_ONNX_INT8:
+            tts.client = Audio8_0_1b_OnnxInt8_API()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_AUDIO8_0_6B_ONNX_INT4:
+            tts.client = Audio8_0_6b_OnnxInt4_API()
             return tts
         else:
             logger.error(f"Unknown type: {tts_type}, fallback to Edge TTS")

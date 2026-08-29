@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "1.3.18"
+version = "1.3.20"
 description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
 readme = "README.md"
 license = "MIT"
@@ -31,7 +31,7 @@ dependencies = [
     "numpy",
     "requests",
     "misaki[zh]",
-    "ffmpeg",
+    "PyYAML",
     "transformers>=4.57.0,<5",
     "onnxruntime",
     "modelscope>=1.20.0",

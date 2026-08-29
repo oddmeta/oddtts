@@ -35,7 +35,7 @@ import importlib.util
 # ============================================================
 ONNX_REPO_ID = os.environ.get("AUDIO8_ONNX_REPO_ID", "Audio8/audio8-TTS-0.1B-ONNX-INT8")
 PYTORCH_REPO_ID = os.environ.get("AUDIO8_PYTORCH_REPO_ID", "Audio8/Audio8-TTS-Preview-0.1b")
-MODEL_DIR = os.environ.get("AUDIO8_MODEL_DIR", "models/audio8-0.1b-onnx-int8")
+MODEL_DIR = os.environ.get("AUDIO8_MODEL_DIR", "models/audio8_0_1b_onnx_int8")
 OFFICIAL_REPO_URL = "https://github.com/Audio8-AI/Audio8_TTS.git"
 OFFICIAL_REPO_DIR = "Audio8_TTS"
 SAMPLE_RATE = 44100
@@ -448,7 +448,7 @@ def main():
     results = []
 
     # 测试 1: 中文
-    output_zh = "output_audio8_zh.wav"
+    output_zh = "output_audio8_0_1b_zh.wav"
     print(f"\n--- 测试 1: 中文语音合成 ---")
     success = False
     if model_path:
@@ -462,7 +462,7 @@ def main():
     results.append(("中文", success, output_zh))
 
     # 测试 2: 英文
-    output_en = "output_audio8_en.wav"
+    output_en = "output_audio8_0_1b_en.wav"
     print(f"\n--- 测试 2: 英文语音合成 ---")
     success = False
     if model_path:
@@ -476,7 +476,7 @@ def main():
     results.append(("英文", success, output_en))
 
     # 测试 3: 中英混合
-    output_mixed = "output_audio8_mixed.wav"
+    output_mixed = "output_audio8_0_1b_mixed.wav"
     print(f"\n--- 测试 3: 中英混合语音合成 ---")
     success = False
     if model_path:

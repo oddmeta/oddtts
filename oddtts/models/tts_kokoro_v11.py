@@ -201,8 +201,6 @@ class KokoroAPIV11():
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
         result = next(generator)
 
-        logger.info(f"文本长度：{len(text)}，生成语音耗时：{time.time() - start_time_pipeline:.3f}秒, 总耗时：{time.time() - start_time:.3f}秒")
-
         # 1. 访问 result.output.audio 获取 tensor
         # 根据日志: result.output 是 KModel.Output 对象，里面有个 audio 属性是 tensor
         if result.output is None or result.output.audio is None:
@@ -214,6 +212,9 @@ class KokoroAPIV11():
         # 2. 将 PyTorch Tensor 转换为 NumPy 数组
         # .detach() 移除梯度追踪，.cpu() 确保在CPU内存中，.numpy() 转为 numpy
         audio_numpy = audio_tensor.detach().cpu().numpy()
+
+        audio_duration = len(audio_numpy) / 24000
+        logger.info(f"文本长度：{len(text)}，生成语音耗时：{time.time() - start_time_pipeline:.3f}秒, 总耗时：{time.time() - start_time:.3f}秒，音频时长: {audio_duration:.2f}s")
 
         return audio_numpy
 
