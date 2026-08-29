@@ -79,7 +79,7 @@ class Audio8_0_1b_OnnxInt8_API:
             logger.info(f"[Audio8] 模型已存在: {model_dir}")
             return
         logger.info(f"[Audio8] 开始下载 ONNX INT8 模型: {ONNX_REPO_ID}")
-        for src in ["huggingface", "modelscope"]:
+        for src in ["modelscope", "huggingface"]:
             try:
                 download_model(repo_id=ONNX_REPO_ID, local_dir=model_dir, source=src)
                 logger.info(f"[Audio8] 模型下载成功: {model_dir}")

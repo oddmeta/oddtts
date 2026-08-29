@@ -39,11 +39,11 @@ def check_and_download_model(repo_id, local_dir):
     """
     print(f"正在检查模型: {repo_id}")
     try:
-        # 检查模型是否存在（优先检查 HuggingFace）
-        if check_model_exists(repo_id, source="huggingface"):
+        # 检查模型是否存在（优先检查 ModelScope）
+        if check_model_exists(repo_id, source="modelscope"):
             print(f"✅ 模型 '{repo_id}' 存在！")
         else:
-            print(f"⚠️ 模型 '{repo_id}' 在 HuggingFace 上未找到，尝试 ModelScope...")
+            print(f"⚠️ 模型 '{repo_id}' 在 ModelScope 上未找到，尝试 HuggingFace...")
 
         # 使用通用接口下载，自动处理源切换
         print(f"开始下载模型到: {local_dir}")
