@@ -6,6 +6,18 @@ import asyncio
 import os
 import platform
 import webbrowser
+def _get_version() -> str:
+    try:
+        from importlib.metadata import version
+        return version("oddtts")
+    except Exception:
+        try:
+            import tomllib
+            pyproject = os.path.join(os.path.dirname(__file__), "..", "pyproject.toml")
+            with open(pyproject, "rb") as f:
+                return tomllib.load(f)["project"]["version"]
+        except Exception:
+            return "unknown"
 
 from oddtts.utils.model_utils import download_model, check_model_exists
 from .oddtts_flask import flask_app
@@ -83,6 +95,7 @@ O   O  d   d  d   d  M   M  e        t    a     a
         """
         
         print(asciiart)
+        print(f" Version: {_get_version()}")
 
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
