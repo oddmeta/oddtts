@@ -91,17 +91,16 @@ O   O  d   d  d   d  M   M  e        t    a     a
  OOO   dddd   dddd   M   M  eeeee    t    a     a
 
  ⭐️ Open Source: https://github.com/oddmeta/oddtts
- 📖 Documentation: https://oddmeta.net/docs/oddtts
-        """
+ 📖 Documentation: https://oddmeta.net/docs/oddtts"""
         
         print(asciiart)
-        print(f" Version: {_get_version()}")
+        print(f" 📖 Version: {_get_version()}")
 
         host = args.host if args.host else config.HOST
         port = args.port if args.port else config.PORT
 
         print(f"Running TTS engine: {config.oddtts_cfg['tts_type'].name}")
-        print(f"Visit Web interface: http://{host}:{port}/")
+        print(f"Visit Web interface: http://{host}:{port}/\n")
 
         # 1. 设置 Hugging Face 镜像地址 (国内用户推荐)
         os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'

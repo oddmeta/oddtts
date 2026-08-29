@@ -337,9 +337,13 @@ def openai_create_speech():
     
     voice = data.get("voice")
     if not voice:
-        elapsed_time = time.time() - start_time
-        logger.warning(f"[响应] 缺少必需参数: voice - 耗时: {elapsed_time:.3f}秒")
-        return jsonify({"error": "缺少必需参数: voice"}), 400
+        if voice_options:
+            voice = voice_options[0]
+            logger.info(f"[参数] 未指定 voice，使用默认: {voice}")
+        else:
+            elapsed_time = time.time() - start_time
+            logger.warning(f"[响应] 无可用音色 - 耗时: {elapsed_time:.3f}秒")
+            return jsonify({"error": "无可用音色"}), 400
     
     speed = data.get("speed", 1.0)
     response_format = data.get("response_format", "mp3")
