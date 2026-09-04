@@ -43,11 +43,6 @@ dependencies = [
     "uvicorn>=0.29.0",
 ]
 
-[project.optional-dependencies]
-moss = [
-    "moss-tts-nano @ git+https://github.com/OpenMOSS/MOSS-TTS-Nano.git",
-]
-
 [project.urls]
 Homepage = "https://oddmeta.net/docs/oddtts"
 Repository = "https://github.com/oddmeta/oddtts"
