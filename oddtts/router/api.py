@@ -125,13 +125,39 @@ def api_tts_file():
     logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
     
     type = config.oddtts_cfg["tts_type"]
+    generation_start = time.time()
     try:
         audio_path = asyncio.run(generate_tts_file(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format))
-        
+        generation_time = time.time() - generation_start
+
+        # 计算音频时长和 RTF
+        audio_duration = 0.0
+        rtf = 0.0
+        if audio_path and os.path.exists(audio_path):
+            try:
+                import soundfile as sf
+                info = sf.info(audio_path)
+                audio_duration = info.duration
+                if audio_duration > 0:
+                    rtf = generation_time / audio_duration
+            except Exception:
+                pass
+
         elapsed_time = time.time() - start_time
-        logger.info(f"[响应] TTS文件生成成功 - 文件路径: {audio_path}, 格式: {response_format}, 耗时: {elapsed_time:.3f}秒")
-        
-        return jsonify({"status": "success", "file_path": audio_path, "format": response_format})
+        logger.info(
+            f"[响应] TTS文件生成成功 - 文件路径: {audio_path}, 格式: {response_format}, "
+            f"总耗时: {elapsed_time:.3f}秒, 合成耗时: {generation_time:.3f}秒, "
+            f"音频时长: {audio_duration:.2f}秒, RTF: {rtf:.3f}"
+        )
+
+        return jsonify({
+            "status": "success",
+            "file_path": audio_path,
+            "format": response_format,
+            "generation_time": round(generation_time, 3),
+            "audio_duration": round(audio_duration, 2),
+            "rtf": round(rtf, 3),
+        })
     except Exception as e:
         elapsed_time = time.time() - start_time
         logger.error(f"[错误] TTS文件生成失败 - 错误信息: {str(e)}, 耗时: {elapsed_time:.3f}秒")
