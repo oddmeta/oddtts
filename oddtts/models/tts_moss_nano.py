@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import importlib.util
+import time
 
 import numpy as np
 
@@ -53,6 +54,9 @@ class MossNanoAPI:
 
     def __init__(self) -> None:
         self.runtime = None
+        # 参考音频编码结果缓存：{audio_path: prompt_audio_codes}
+        # 避免每次合成都重新跑 codec_encode ONNX
+        self._prompt_codes_cache: dict[str, list[list[int]]] = {}
 
     def _ensure_models(self) -> None:
         """确保 ONNX 模型已下载（优先 ModelScope）"""
@@ -139,6 +143,44 @@ class MossNanoAPI:
         logger.info("[预加载] 开始预加载 MOSS-TTS-Nano 模型...")
         self._ensure_models()
         self._init_runtime()
+
+        # 检测模型是否支持 local_greedy_frame（贪婪解码）
+        has_greedy = "local_greedy_frame" in self.runtime.sessions
+        logger.info(f"[预加载] local_greedy_frame 可用: {has_greedy}")
+
+        # Warmup：跑一次内置音色的合成，让 ONNX Session 预热
+        try:
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp_path = tmp.name
+            # 保存原始 max_new_frames，避免 warmup 永久修改默认值
+            original_max_frames = self.runtime.manifest["generation_defaults"].get("max_new_frames")
+            # 根据模型能力选择正确的 sample_mode：
+            # - 有 local_greedy_frame → greedy + do_sample=False（最快）
+            # - 无 local_greedy_frame → fixed + do_sample=True（避免 local_cached_step 贪婪选择 end token 导致截断）
+            if has_greedy:
+                warmup_kwargs = dict(sample_mode="greedy", do_sample=False)
+            else:
+                warmup_kwargs = dict(sample_mode="fixed", do_sample=True)
+            self.runtime.synthesize(
+                text="预热。",
+                voice="Junhao",
+                output_audio_path=tmp_path,
+                streaming=True,
+                max_new_frames=32,
+                enable_wetext=False,
+                enable_normalize_tts_text=False,
+                **warmup_kwargs,
+            )
+            # 恢复原始 max_new_frames
+            if original_max_frames is not None:
+                self.runtime.manifest["generation_defaults"]["max_new_frames"] = original_max_frames
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            logger.info(f"[预加载] Warmup 合成完成，模式: {warmup_kwargs['sample_mode']}")
+        except Exception as e:
+            logger.warning(f"[预加载] Warmup 合成失败（不影响后续使用）: {e}")
+
         logger.info("[预加载] MOSS-TTS-Nano 模型预加载完成")
 
     async def get_voices(self) -> list[dict[str, str]]:
@@ -179,6 +221,40 @@ class MossNanoAPI:
         logger.warning(f"[MossNano] 未知音色 '{requested}'，回退到 Junhao")
         return "Junhao", None
 
+    def _get_cached_prompt_codes(self, prompt_audio_path: str) -> list[list[int]]:
+        """获取缓存的参考音频编码结果，优先读内存/磁盘缓存，未缓存则实时编码。"""
+        # 1. 内存缓存
+        if prompt_audio_path in self._prompt_codes_cache:
+            logger.debug(f"[MossNano] 命中内存缓存: {prompt_audio_path}")
+            return self._prompt_codes_cache[prompt_audio_path]
+
+        # 2. 磁盘缓存（和 reference.wav 同目录的 prompt_codes.npy）
+        cache_npy = os.path.join(os.path.dirname(prompt_audio_path), "prompt_codes.npy")
+        if os.path.isfile(cache_npy):
+            try:
+                codes_array = np.load(cache_npy)
+                codes = codes_array.tolist()
+                self._prompt_codes_cache[prompt_audio_path] = codes
+                logger.info(f"[MossNano] 命中磁盘缓存: {cache_npy}, 帧数: {len(codes)}")
+                return codes
+            except Exception as e:
+                logger.warning(f"[MossNano] 磁盘缓存读取失败，将重新编码: {e}")
+
+        # 3. 实时编码
+        logger.info(f"[MossNano] 首次编码参考音频: {prompt_audio_path}")
+        codes = self.runtime.encode_reference_audio(prompt_audio_path)
+        self._prompt_codes_cache[prompt_audio_path] = codes
+        logger.info(f"[MossNano] 参考音频编码完成，帧数: {len(codes)}")
+
+        # 4. 持久化到磁盘
+        try:
+            np.save(cache_npy, np.array(codes, dtype=np.int32))
+            logger.info(f"[MossNano] 编码结果已持久化: {cache_npy}")
+        except Exception as e:
+            logger.warning(f"[MossNano] 编码结果持久化失败: {e}")
+
+        return codes
+
     def _synthesize(self, text: str, tts_params: TTSParams) -> np.ndarray:
         """内部合成方法，返回 numpy 音频数组"""
         if self.runtime is None:
@@ -201,26 +277,64 @@ class MossNanoAPI:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             tmp_path = tmp.name
 
+        # 检测模型是否支持 local_greedy_frame（贪婪解码）
+        has_greedy = "local_greedy_frame" in self.runtime.sessions
+        if has_greedy:
+            sample_mode = "greedy"
+            do_sample = False
+        else:
+            # 模型没有 local_greedy_frame，fallback 到 fixed 采样。
+            # 如果强行 do_sample=False，会走 local_cached_step 路径，
+            # 贪婪选择 text token 极易选中 audio_end_token_id 导致提前截断。
+            sample_mode = "fixed"
+            do_sample = True
+
+        # 如果使用了克隆音色，缓存参考音频编码结果以加速后续合成
+        _original_resolve = None
         try:
             kwargs = dict(
                 text=text,
                 voice=voice,
                 output_audio_path=tmp_path,
-                sample_mode="fixed",
-                do_sample=True,
+                sample_mode=sample_mode,
+                do_sample=do_sample,
                 streaming=True,
                 enable_wetext=has_tn,
                 enable_normalize_tts_text=has_tn,
             )
             if prompt_audio_path:
-                kwargs["prompt_audio_path"] = prompt_audio_path
+                # 核心优化：缓存 prompt_audio_codes，避免每次合成都重新 encode
+                cached_codes = self._get_cached_prompt_codes(prompt_audio_path)
+                # 临时替换 resolve_prompt_audio_codes，使其返回缓存的 codes
+                _original_resolve = self.runtime.resolve_prompt_audio_codes
+                self.runtime.resolve_prompt_audio_codes = lambda **kw: cached_codes
 
+            logger.info(f"[MossNano] 开始合成: {text}, wetext: {has_tn}, 使用克隆音色: {voice}, 参考音频: {prompt_audio_path}")
+
+            time_start = time.time()
             result = self.runtime.synthesize(**kwargs)
+            time_end = time.time()
+
+            logger.info(f"[MossNano] 合成完成，耗时: {time_end - time_start:.2f}s")
+
             waveform = result["waveform"]
             duration = len(waveform) / SAMPLE_RATE
-            logger.info(f"[MossNano] 合成完成，音频时长: {duration:.2f}s")
+            # 诊断日志：记录分块情况和每块生成的帧数
+            text_chunks = result.get("text_chunks", [])
+            chunk_results = result.get("chunk_results", [])
+            chunk_info = ", ".join(
+                f"chunk{i}(tokens={len(cr.get('text_token_ids', []))}, frames={len(cr.get('generated_frames', []))})"
+                for i, cr in enumerate(chunk_results)
+            )
+            logger.info(
+                f"[MossNano] 合成完成，音频时长: {duration:.2f}s, "
+                f"分块数: {len(text_chunks)}, 采样模式: {sample_mode}, "
+                f"生成详情: [{chunk_info}]"
+            )
             return waveform.astype(np.float32)
         finally:
+            if _original_resolve is not None:
+                self.runtime.resolve_prompt_audio_codes = _original_resolve
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
@@ -234,7 +348,19 @@ class MossNanoAPI:
             if hasattr(tts_params, "response_format")
             else "wav"
         )
+
+        time_start = time.time()
+        logger.info(
+            f"[MossNano] 转换音频格式: voice={tts_params.voice}, format={tts_params.response_format}"
+        )
+
         result = convert_ndarray_to_format(audio_numpy, SAMPLE_RATE, output_format)
+
+        time_end = time.time()
+        logger.info(
+            f"[MossNano] 转换完成，耗时: {time_end - time_start:.2f}s"
+        )
+
         if isinstance(result, str):
             return result
         raise TypeError(f"期望返回 str 类型，但得到 {type(result).__name__}")
@@ -249,6 +375,10 @@ class MossNanoAPI:
             if hasattr(tts_params, "response_format")
             else "wav"
         )
+        time_start = time.time()
+        logger.info(
+            f"[MossNano] 转换音频格式: voice={tts_params.voice}, format={tts_params.response_format}"
+        )
         result = convert_audio_format(
             input_data=audio_numpy,
             input_type="numpy",
@@ -256,6 +386,12 @@ class MossNanoAPI:
             output_type="bytes",
             sample_rate=SAMPLE_RATE,
         )
+
+        time_end = time.time()
+        logger.info(
+            f"[MossNano] 转换完成，耗时: {time_end - time_start:.2f}s"
+        )
+
         if isinstance(result, bytes):
             return result
         raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
@@ -270,6 +406,10 @@ class MossNanoAPI:
             if hasattr(tts_params, "response_format")
             else "wav"
         )
+        time_start = time.time()
+        logger.info(
+            f"[MossNano] 转换音频格式: voice={tts_params.voice}, format={tts_params.response_format}"
+        )
         audio_data = convert_audio_format(
             input_data=audio_numpy,
             input_type="numpy",
@@ -277,4 +417,9 @@ class MossNanoAPI:
             output_type="bytes",
             sample_rate=SAMPLE_RATE,
         )
+        time_end = time.time()
+        logger.info(
+            f"[MossNano] 转换完成，耗时: {time_end - time_start:.2f}s"
+        )
+
         yield audio_data

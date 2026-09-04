@@ -4,10 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "2.0.1"
+version = "2.0.9"
 description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
 readme = "README.md"
-license-files = ["LICENSE"]
 
 authors = [
     {name = "Catherine Wei", email = "catherine@oddmeta.com"},
