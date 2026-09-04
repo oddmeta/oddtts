@@ -65,7 +65,20 @@ class Audio8_0_1b_OnnxInt8_API:
         return os.path.abspath(ONNX_MODEL_DIR)
 
     def _repo_dir(self) -> str:
-        return os.path.join(os.path.dirname(__file__), "..", "..", OFFICIAL_REPO_DIR)
+        # 1. 项目根目录（开发模式）
+        repo_dir = os.path.join(os.path.dirname(__file__), "..", "..", OFFICIAL_REPO_DIR)
+        if os.path.isdir(repo_dir):
+            return repo_dir
+        # 2. pip 安装后的 vendor 目录
+        try:
+            import oddtts
+            pkg_dir = os.path.dirname(os.path.abspath(oddtts.__file__))
+            vendor = os.path.join(pkg_dir, "vendor", OFFICIAL_REPO_DIR)
+            if os.path.isdir(vendor):
+                return vendor
+        except Exception:
+            pass
+        return repo_dir
 
     def _runtime_dir(self) -> str:
         return os.path.join(self._repo_dir(), "onnx_runtime_0_1b_int8")
