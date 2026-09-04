@@ -76,6 +76,7 @@
             <button class="tab-btn active" data-tab="tts">语音合成</button>
             <button class="tab-btn" data-tab="openai">OpenAI兼容</button>
             <button class="tab-btn" data-tab="voices">语音列表</button>
+            <button class="tab-btn" data-tab="voice-clone">音色克隆</button>
             <button class="tab-btn" data-tab="api">API文档</button>
             <button class="tab-btn" data-tab="model">当前TTS模型</button>
         </div>
@@ -190,6 +191,57 @@
             </div>
             <div class="voice-list" id="voice-list">
                 <p style="color:#888;">加载中...</p>
+            </div>
+        </div>
+        
+        <div class="tab-content" id="voice-clone">
+            <div class="two-col">
+                <div>
+                    <h2 style="color:#00d4ff;margin-bottom:20px;">克隆新音色</h2>
+                    
+                    <div class="form-group">
+                        <label>选择参考音频</label>
+                        <input type="file" id="clone-audio-file" accept="audio/*,.wav,.mp3,.flac,.m4a,.ogg,.opus,.aac" style="padding:8px;background:#2a2a4a;border:1px solid #3a3a5a;border-radius:8px;color:#fff;">
+                        <p style="color:#888;font-size:12px;margin-top:4px;">建议 3-10 秒清晰人声，格式支持 wav/mp3/flac 等</p>
+                        <audio id="clone-audio-preview" controls style="display:none;margin-top:8px;width:100%;"></audio>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>音色标识（voice_id）</label>
+                        <input type="text" id="clone-voice-id" placeholder="如: xiaoming" style="padding:12px;background:#2a2a4a;border:1px solid #3a3a5a;border-radius:8px;color:#fff;width:100%;">
+                        <p style="color:#888;font-size:12px;margin-top:4px;">只允许字母、数字、下划线、连字符</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>展示名称</label>
+                        <input type="text" id="clone-display-name" placeholder="如: 小明" style="padding:12px;background:#2a2a4a;border:1px solid #3a3a5a;border-radius:8px;color:#fff;width:100%;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>语种</label>
+                        <select id="clone-locale" style="padding:12px;background:#2a2a4a;border:1px solid #3a3a5a;border-radius:8px;color:#fff;width:100%;">
+                            <option value="zh-CN">zh-CN (中文)</option>
+                            <option value="en-US">en-US (英语)</option>
+                            <option value="ja-JP">ja-JP (日语)</option>
+                            <option value="ko-KR">ko-KR (韩语)</option>
+                            <option value="fr-FR">fr-FR (法语)</option>
+                            <option value="de-DE">de-DE (德语)</option>
+                            <option value="es-ES">es-ES (西班牙语)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn" id="btn-clone-upload">保存音色</button>
+                </div>
+                
+                <div>
+                    <h2 style="color:#00d4ff;margin-bottom:20px;">已克隆音色</h2>
+                    
+                    <div class="status" id="clone-status" style="display:none"></div>
+                    
+                    <div id="cloned-voice-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
+                        <p style="color:#888;">加载中...</p>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -339,7 +391,8 @@
                 openaiVoice.innerHTML = '';
                 voices.forEach(v => {
                     if(v.short_name) {
-                        openaiVoice.innerHTML += `<option value="${v.short_name}">${v.short_name}</option>`;
+                        const label = v.is_cloned ? `🎤 ${v.display_name || v.short_name}` : v.short_name;
+                        openaiVoice.innerHTML += `<option value="${v.short_name}">${label}</option>`;
                     }
                 });
                 
@@ -361,7 +414,8 @@
             voiceSelect.innerHTML = '';
             filtered.forEach(v => {
                 if(v.short_name) {
-                    voiceSelect.innerHTML += `<option value="${v.short_name}">${v.short_name}</option>`;
+                    const label = v.is_cloned ? `🎤 ${v.display_name || v.short_name}` : v.short_name;
+                    voiceSelect.innerHTML += `<option value="${v.short_name}">${label}</option>`;
                 }
             });
         });
@@ -378,10 +432,11 @@
             const container = document.getElementById('voice-list');
             container.innerHTML = list.map(v => `
                 <div class="voice-card">
-                    <h3>${v.short_name || 'N/A'}</h3>
+                    <h3>${v.is_cloned ? '🎤 ' : ''}${v.display_name || v.short_name || 'N/A'}</h3>
                     <p><strong>名称:</strong> ${v.name || 'N/A'}</p>
                     <p><strong>性别:</strong> ${v.gender || 'N/A'}</p>
                     <p><strong>语种:</strong> ${v.locale || 'N/A'}</p>
+                    ${v.is_cloned ? '<p style="color:#00ff88;font-size:12px;">克隆音色</p>' : ''}
                 </div>
             `).join('');
         }
@@ -685,9 +740,138 @@
             showStatus('config-status', '配置已重新加载', 'info');
         });
         
+        // ===================================================================
+        // 音色克隆功能
+        // ===================================================================
+        
+        // 音频文件选择预览
+        document.getElementById('clone-audio-file').addEventListener('change', e => {
+            const file = e.target.files[0];
+            const preview = document.getElementById('clone-audio-preview');
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+            }
+        });
+        
+        // 加载已克隆音色列表
+        async function loadClonedVoices() {
+            try {
+                const res = await fetch('/api/voice/clone/list');
+                const data = await res.json();
+                const container = document.getElementById('cloned-voice-list');
+                
+                if (!data.success || !data.voices || data.voices.length === 0) {
+                    container.innerHTML = '<p style="color:#888;">暂无克隆音色，请在左侧上传参考音频。</p>';
+                    return;
+                }
+                
+                container.innerHTML = data.voices.map(v => `
+                    <div class="voice-card" style="position:relative;">
+                        <h3>🎤 ${v.display_name || v.short_name}</h3>
+                        <p><strong>标识:</strong> ${v.short_name}</p>
+                        <p><strong>引擎:</strong> ${v.engine}</p>
+                        <p><strong>语种:</strong> ${v.locale || 'N/A'}</p>
+                        <p><strong>创建时间:</strong> ${v.created_at || 'N/A'}</p>
+                        <div style="margin-top:12px;display:flex;gap:8px;">
+                            <button class="btn" style="padding:8px 16px;font-size:13px;" 
+                                onclick="playClonedAudio('${v.engine}', '${v.short_name}')">试听原音频</button>
+                            <button class="btn" style="padding:8px 16px;font-size:13px;background:#ff6b6b;" 
+                                onclick="deleteClonedVoice('${v.engine}', '${v.short_name}')">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error('加载克隆音色失败:', e);
+                document.getElementById('cloned-voice-list').innerHTML = '<p style="color:#ff6b6b;">加载失败: ' + e.message + '</p>';
+            }
+        }
+        
+        // 试听克隆音色的参考音频
+        window.playClonedAudio = function(engine, voiceId) {
+            const url = `/api/voice/clone/audio/${engine}/${voiceId}`;
+            const audio = new Audio(url);
+            audio.play();
+        };
+        
+        // 删除克隆音色
+        window.deleteClonedVoice = async function(engine, voiceId) {
+            if (!confirm(`确定要删除克隆音色 "${voiceId}" 吗？此操作不可恢复。`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/api/voice/clone/${engine}/${voiceId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('clone-status', '音色已删除', 'success');
+                    loadClonedVoices();
+                    loadVoices(); // 刷新全局语音列表
+                } else {
+                    showStatus('clone-status', '删除失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('clone-status', '删除失败: ' + e.message, 'error');
+            }
+        };
+        
+        // 上传克隆音色
+        document.getElementById('btn-clone-upload').addEventListener('click', async () => {
+            const fileInput = document.getElementById('clone-audio-file');
+            const voiceId = document.getElementById('clone-voice-id').value.trim();
+            const displayName = document.getElementById('clone-display-name').value.trim();
+            const locale = document.getElementById('clone-locale').value;
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('clone-status', '请选择参考音频文件', 'error');
+                return;
+            }
+            if (!voiceId) {
+                showStatus('clone-status', '请输入音色标识（voice_id）', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('audio', fileInput.files[0]);
+            formData.append('voice_id', voiceId);
+            formData.append('display_name', displayName || voiceId);
+            formData.append('locale', locale);
+            
+            showStatus('clone-status', '正在上传并处理音频...', 'info');
+            document.getElementById('btn-clone-upload').disabled = true;
+            
+            try {
+                const res = await fetch('/api/voice/clone', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showStatus('clone-status', `音色 "${data.voice.display_name}" 保存成功！`, 'success');
+                    // 清空表单
+                    fileInput.value = '';
+                    document.getElementById('clone-audio-preview').style.display = 'none';
+                    document.getElementById('clone-voice-id').value = '';
+                    document.getElementById('clone-display-name').value = '';
+                    // 刷新列表
+                    loadClonedVoices();
+                    loadVoices();
+                } else {
+                    showStatus('clone-status', '保存失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('clone-status', '保存失败: ' + e.message, 'error');
+            }
+            
+            document.getElementById('btn-clone-upload').disabled = false;
+        });
+        
         // 初始化
         loadVoices();
         loadTtsTypes();
+        loadClonedVoices();
     </script>
 </body>
 </html>

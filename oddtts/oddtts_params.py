@@ -18,13 +18,14 @@ class TTSParams:
     locale: str
     response_format: str
 
-    def __init__(self, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav") -> None:
+    def __init__(self, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None) -> None:
         self.voice = voice
         self.rate = rate
         self.volume = volume
         self.pitch = pitch
         self.locale = locale
         self.response_format = response_format
+        self.prompt_audio_path = prompt_audio_path
 
 
 def new_uuid():

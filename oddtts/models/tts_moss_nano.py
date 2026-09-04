@@ -8,8 +8,12 @@ import numpy as np
 from oddtts.utils.model_utils import download_model
 from oddtts.oddtts_params import TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
+from oddtts.voice_clone import get_voice_clone_manager
 
 logger = setup_logger(__name__)
+
+# 引擎标识（用于 VoiceCloneManager）
+ENGINE_NAME = "moss_nano"
 
 # 模型下载配置（优先 ModelScope，回退 HuggingFace）
 TTS_MODELSCOPE_ID = "openmoss/MOSS-TTS-Nano-100M-ONNX"
@@ -138,14 +142,49 @@ class MossNanoAPI:
         logger.info("[预加载] MOSS-TTS-Nano 模型预加载完成")
 
     async def get_voices(self) -> list[dict[str, str]]:
-        return list(MossNano_voices.values())
+        """返回内置音色 + 克隆音色列表。"""
+        builtin = list(MossNano_voices.values())
+        cloned = get_voice_clone_manager().list_voices(ENGINE_NAME)
+        return builtin + cloned
+
+    def _resolve_voice_and_prompt(self, tts_params: TTSParams) -> tuple[str, str | None]:
+        """解析 voice 和 prompt_audio_path。
+
+        返回 (voice, prompt_audio_path):
+        - 内置音色: voice=内置名, prompt_audio_path=None
+        - 克隆音色: voice=内置fallback, prompt_audio_path=克隆音频路径
+        - 优先使用 TTSParams.prompt_audio_path（即时上传模式）
+        """
+        # 1. 如果 params 直接带了 prompt_audio_path（即时上传 / API 指定），优先使用
+        if getattr(tts_params, "prompt_audio_path", None):
+            voice = tts_params.voice if tts_params.voice in MossNano_voices else "Junhao"
+            return voice, tts_params.prompt_audio_path
+
+        requested = tts_params.voice
+
+        # 2. 请求的是内置音色
+        if requested in MossNano_voices:
+            return requested, None
+
+        # 3. 尝试从克隆库查找
+        manager = get_voice_clone_manager()
+        prompt_path = manager.get_audio_path(ENGINE_NAME, requested)
+        if prompt_path:
+            # 克隆模式下 voice 传内置 fallback 用于文本预处理
+            fallback = "Junhao"
+            logger.info(f"[MossNano] 使用克隆音色: {requested}, 参考音频: {prompt_path}")
+            return fallback, prompt_path
+
+        # 4. 未知音色，回退到默认内置音色
+        logger.warning(f"[MossNano] 未知音色 '{requested}'，回退到 Junhao")
+        return "Junhao", None
 
     def _synthesize(self, text: str, tts_params: TTSParams) -> np.ndarray:
         """内部合成方法，返回 numpy 音频数组"""
         if self.runtime is None:
             self._init_runtime()
 
-        voice = tts_params.voice if tts_params.voice in MossNano_voices else "Junhao"
+        voice, prompt_audio_path = self._resolve_voice_and_prompt(tts_params)
 
         # 检测 WeTextProcessing 是否可用（Windows 上需先 conda install pynini）
         try:
@@ -163,7 +202,7 @@ class MossNanoAPI:
             tmp_path = tmp.name
 
         try:
-            result = self.runtime.synthesize(
+            kwargs = dict(
                 text=text,
                 voice=voice,
                 output_audio_path=tmp_path,
@@ -173,6 +212,10 @@ class MossNanoAPI:
                 enable_wetext=has_tn,
                 enable_normalize_tts_text=has_tn,
             )
+            if prompt_audio_path:
+                kwargs["prompt_audio_path"] = prompt_audio_path
+
+            result = self.runtime.synthesize(**kwargs)
             waveform = result["waveform"]
             duration = len(waveform) / SAMPLE_RATE
             logger.info(f"[MossNano] 合成完成，音频时长: {duration:.2f}s")
