@@ -223,6 +223,8 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_AUDIO8_0_1B_ONNX_INT8 = 8
     # Audio8 0.6B ONNX INT4
     ODDTTS_AUDIO8_0_6B_ONNX_INT4 = 9
+    # MOSS-TTS-Nano 0.1B ONNX
+    ODDTTS_MOSS_NANO = 10
 
     @property
     def description(self):
@@ -236,7 +238,8 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_KOKORO: 'Kokoro - 轻量级多语言TTS引擎（纯CPU，中文）',
             self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）',
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'Audio8 0.1B ONNX INT8 - Audio8 0.1B ONNX INT8 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
-            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'Audio8 0.6B ONNX INT4 - Audio8 0.6B ONNX INT4 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）'
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'Audio8 0.6B ONNX INT4 - Audio8 0.6B ONNX INT4 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
+            self.ODDTTS_MOSS_NANO: 'MOSS-TTS-Nano 0.1B ONNX - OpenMOSS 轻量级多语言TTS（纯CPU，近20种语言，48kHz）'
         }
         return descriptions[self]
 
@@ -252,7 +255,8 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_KOKORO: True,
             self.ODDTTS_KOKORO_V1_1: True,
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: True,
-            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: True
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: True,
+            self.ODDTTS_MOSS_NANO: True
         }
         return enabled[self]
 

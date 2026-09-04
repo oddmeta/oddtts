@@ -4,7 +4,7 @@ edge-tts
 pydub>=0.25.1
 kokoro
 ordered-set
-torch
+torch>=2.0.0
 soundfile
 numpy
 requests
@@ -14,3 +14,9 @@ transformers>=4.57.0,<5
 onnxruntime
 modelscope>=1.20.0
 huggingface-hub>=0.20.0
+# MOSS-TTS-Nano dependencies
+fastapi>=0.110.0
+python-multipart>=0.0.9
+sentencepiece>=0.1.99
+torchaudio>=2.0.0
+uvicorn>=0.29.0

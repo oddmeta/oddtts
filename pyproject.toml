@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "1.3.21"
+version = "1.3.27"
 description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
 readme = "README.md"
-license = "MIT"
+license-files = ["LICENSE"]
 
 authors = [
     {name = "Catherine Wei", email = "catherine@oddmeta.com"},
@@ -26,7 +26,7 @@ dependencies = [
     "pydub>=0.25.1",
     "kokoro",
     "ordered-set",
-    "torch",
+    "torch>=2.0.0",
     "soundfile",
     "numpy",
     "requests",
@@ -36,6 +36,17 @@ dependencies = [
     "onnxruntime",
     "modelscope>=1.20.0",
     "huggingface-hub>=0.20.0",
+    # MOSS-TTS-Nano dependencies
+    "fastapi>=0.110.0",
+    "python-multipart>=0.0.9",
+    "sentencepiece>=0.1.99",
+    "torchaudio>=2.0.0",
+    "uvicorn>=0.29.0",
+]
+
+[project.optional-dependencies]
+moss = [
+    "moss-tts-nano @ git+https://github.com/OpenMOSS/MOSS-TTS-Nano.git",
 ]
 
 [project.urls]
@@ -61,4 +72,5 @@ oddtts = [
     "templates/*.html",
     "docs/*",
     "router/*.py",
+    "vendor/**/*",
 ]
