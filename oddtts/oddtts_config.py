@@ -17,7 +17,7 @@ oddtts_cfg = {
     ## concurrent threads, 0 auto detect CPU cores
     "concurrent_thread": 0,
     ## tts type
-    "tts_type": ODDTTS_TYPE.ODDTTS_AUDIO8_0_6B_ONNX_INT4,
+    "tts_type": ODDTTS_TYPE.ODDTTS_MOSS_NANO,
 
     ## 模型根目录（所有引擎模型存放于此目录下，按 engine.model_key 子目录组织）
     "model_base_dir": "models",

@@ -86,14 +86,14 @@ class Audio8_0_1b_OnnxInt8_API:
 
     def _repo_dir(self) -> str:
         # 1. 项目根目录（开发模式）
-        repo_dir = os.path.join(os.path.dirname(__file__), "..", "..", OFFICIAL_REPO_DIR)
+        repo_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", OFFICIAL_REPO_DIR))
         if os.path.isdir(repo_dir):
             return repo_dir
         # 2. pip 安装后的 vendor 目录
         try:
             import oddtts
             pkg_dir = os.path.dirname(os.path.abspath(oddtts.__file__))
-            vendor = os.path.join(pkg_dir, "vendor", OFFICIAL_REPO_DIR)
+            vendor = os.path.normpath(os.path.join(pkg_dir, "vendor", OFFICIAL_REPO_DIR))
             if os.path.isdir(vendor):
                 return vendor
         except Exception:
@@ -273,7 +273,7 @@ class Audio8_0_1b_OnnxInt8_API:
         requested = tts_params.voice
         if requested:
             # 检查是否已在 runtime voices 目录中注册
-            voice_dir = os.path.join(self._voices_dir(), requested)
+            voice_dir = os.path.normpath(os.path.join(self._voices_dir(), requested))
             if os.path.isdir(voice_dir) and os.path.isfile(os.path.join(voice_dir, "codes.npy")):
                 return requested
 
