@@ -8,6 +8,7 @@ import numpy as np
 from oddtts.utils.model_utils import download_model
 from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
+from oddtts.voice_clone import get_voice_clone_manager
 
 logger = setup_logger(__name__)
 
@@ -15,6 +16,8 @@ ONNX_REPO_ID = os.environ.get("AUDIO8_0_6B_REPO_ID", "Audio8/Audio8-TTS-Preview-
 ONNX_MODEL_DIR = os.environ.get("AUDIO8_0_6B_MODEL_DIR", "models/audio8_0_6b_onnx_int4")
 OFFICIAL_REPO_DIR = "Audio8_TTS"
 SAMPLE_RATE = 44100
+
+ENGINE_NAME = "audio8_0_6b_onnx_int4"
 
 Audio8_0_6b_voices = {
     "default_voice": {
@@ -55,6 +58,23 @@ class Audio8_0_6b_OnnxInt4_API:
                         }
                     except Exception:
                         pass
+
+        # 合并 VoiceCloneManager 中的克隆音色
+        try:
+            manager = get_voice_clone_manager()
+            for v in manager.list_voices(ENGINE_NAME):
+                name = v["name"]
+                if name not in Audio8_0_6b_voices:
+                    Audio8_0_6b_voices[name] = {
+                        "name": name,
+                        "gender": v.get("gender", "Unknown"),
+                        "locale": v.get("locale", "zh-CN"),
+                        "short_name": name,
+                        "is_cloned": True,
+                    }
+        except Exception as e:
+            logger.warning(f"[Audio8-0.6B] 获取克隆音色列表失败: {e}")
+
         return list(Audio8_0_6b_voices.values())
 
     def _model_dir(self) -> str:
@@ -160,11 +180,86 @@ class Audio8_0_6b_OnnxInt4_API:
             pathlib.Path.read_text = _original_read_text
             raise RuntimeError(f"[Audio8-0.6B] Runtime 初始化失败: {e}")
 
+    def _register_voice(self, voice_name: str, audio_path: str, reference_text: str = "") -> bool:
+        """将参考音频注册为 Audio8 runtime 可用的音色。"""
+        if self.runtime is None:
+            return False
+
+        try:
+            from arktts_runtime.registration import VoiceRegistration
+        except ImportError:
+            logger.warning("[Audio8-0.6B] VoiceRegistration 模块不可用")
+            return False
+
+        try:
+            reg = VoiceRegistration(
+                model_dir=self._model_dir(),
+                voices_root=self._voices_dir(),
+                model_fingerprint=str(self.runtime.manifest.get("model_fingerprint", "")),
+            )
+            status = reg.status()
+            if not status["available"]:
+                logger.warning(f"[Audio8-0.6B] VoiceRegistration 不可用: {status['reason']}")
+                return False
+
+            with open(audio_path, "rb") as f:
+                audio_data = f.read()
+
+            if not reference_text:
+                reference_text = "Reference audio for voice cloning."
+
+            meta = reg.register(
+                data=audio_data,
+                filename=os.path.basename(audio_path),
+                text=reference_text,
+                name=voice_name,
+                overwrite=True,
+            )
+            logger.info(f"[Audio8-0.6B] 音色注册成功: {voice_name}, shape={meta.get('shape')}")
+            return True
+        except Exception as e:
+            logger.warning(f"[Audio8-0.6B] 音色注册失败 ({voice_name}): {e}")
+            return False
+
+    def _resolve_voice(self, tts_params: TTSParams) -> str:
+        """解析音色名称，支持克隆音色和即时上传模式。"""
+        if self.runtime is None:
+            self._init_runtime()
+
+        # 1. 即时上传模式
+        prompt_audio_path = getattr(tts_params, "prompt_audio_path", None)
+        if prompt_audio_path and os.path.isfile(prompt_audio_path):
+            temp_name = f"_instant_{new_uuid()[:8]}"
+            if self._register_voice(temp_name, prompt_audio_path):
+                logger.info(f"[Audio8-0.6B] 即时上传音色注册成功: {temp_name}")
+                return temp_name
+            logger.warning("[Audio8-0.6B] 即时上传音色注册失败，回退到 default_voice")
+            return "default_voice"
+
+        # 2. 指定的音色名
+        requested = tts_params.voice
+        if requested:
+            voice_dir = os.path.join(self._voices_dir(), requested)
+            if os.path.isdir(voice_dir) and os.path.isfile(os.path.join(voice_dir, "codes.npy")):
+                return requested
+
+            # 3. 尝试从 VoiceCloneManager 查找克隆音色
+            manager = get_voice_clone_manager()
+            audio_path = manager.get_audio_path(ENGINE_NAME, requested)
+            if audio_path and os.path.isfile(audio_path):
+                if self._register_voice(requested, audio_path):
+                    logger.info(f"[Audio8-0.6B] 克隆音色注册成功: {requested}")
+                    return requested
+                logger.warning(f"[Audio8-0.6B] 克隆音色注册失败: {requested}，回退到 default_voice")
+
+        # 4. 回退
+        return "default_voice"
+
     def _synthesize(self, text: str, tts_params: TTSParams) -> np.ndarray:
         if self.runtime is None:
             self._init_runtime()
 
-        voice = tts_params.voice if tts_params.voice in Audio8_0_6b_voices else "default_voice"
+        voice = self._resolve_voice(tts_params)
 
         start_time = time.time()
         audio, codes = self.runtime.synthesize(

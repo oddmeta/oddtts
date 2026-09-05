@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "2.0.9"
+version = "2.0.10"
 description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
 readme = "README.md"
 
