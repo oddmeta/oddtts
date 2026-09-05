@@ -20,6 +20,68 @@ DEFAULT_SOURCE_PRIORITY = ["modelscope", "huggingface"]
 ENV_MODEL_SOURCE = "ODDTTS_MODEL_SOURCE"
 
 
+def get_project_root() -> str:
+    """返回 oddtts 包的根目录（即 oddtts/ 的上级目录）。
+
+    不依赖 os.getcwd()，而是通过 oddtts 包自身的 __file__ 定位，
+    确保无论从哪个目录启动服务器都能正确解析模型路径。
+    """
+    import oddtts as _pkg
+    return os.path.dirname(os.path.dirname(os.path.abspath(_pkg.__file__)))
+
+
+def is_pip_installed() -> bool:
+    """检测 oddtts 是否通过 pip 安装（而非源码运行）。"""
+    import oddtts as _pkg
+    pkg_dir = os.path.dirname(os.path.abspath(_pkg.__file__))
+    return "site-packages" in pkg_dir or "dist-packages" in pkg_dir
+
+
+def get_data_root() -> str:
+    """返回用户数据根目录（模型文件存储位置）。
+
+    - 源码运行（开发模式）: 项目根目录（与 get_project_root() 一致）
+    - pip 安装: 用户级数据目录，跨平台安全可写
+      - Windows: %LOCALAPPDATA%/oddtts
+      - Linux/macOS: ~/.local/share/oddtts
+    """
+    if not is_pip_installed():
+        return get_project_root()
+
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+        return os.path.join(base, "oddtts")
+    else:
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "oddtts")
+
+
+def resolve_model_dir(model_key: str, env_var: str = None) -> str:
+    """将引擎的 model_key 解析为模型目录绝对路径。
+
+    路径规则：data_root / model_base_dir / model_key
+    例如: models/audio8_0_1b
+
+    优先级：
+    1. 环境变量 env_var（如果提供且已设置）
+    2. model_base_dir / model_key 相对于数据根目录解析
+
+    Args:
+        model_key: 引擎的模型子目录名（来自 ODDTTS_TYPE.model_key）
+        env_var: 可选的环境变量名，用于覆盖默认路径
+
+    Returns:
+        绝对路径
+    """
+    if env_var:
+        env_val = os.environ.get(env_var, "")
+        if env_val:
+            return os.path.abspath(env_val)
+    from oddtts.oddtts_config import oddtts_cfg
+    base = oddtts_cfg.get("model_base_dir", "models")
+    root = get_data_root()
+    return os.path.join(root, base, model_key)
+
+
 def _ensure_package(package_name: str, import_name: str = None) -> None:
     """确保指定包已安装，未安装则尝试自动安装"""
     check_name = (import_name or package_name).replace("-", "_")

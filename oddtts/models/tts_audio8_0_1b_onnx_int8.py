@@ -8,7 +8,7 @@ import importlib.util
 
 import numpy as np
 
-from oddtts.utils.model_utils import download_model
+from oddtts.utils.model_utils import download_model, resolve_model_dir
 from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
@@ -16,8 +16,6 @@ from oddtts.voice_clone import get_voice_clone_manager
 logger = setup_logger(__name__)
 
 ONNX_REPO_ID = os.environ.get("AUDIO8_ONNX_REPO_ID", "Audio8/audio8-TTS-0.1B-ONNX-INT8")
-ONNX_MODEL_DIR = os.environ.get("AUDIO8_MODEL_DIR", "models/audio8_0_1b_onnx_int8")
-OFFICIAL_REPO_URL = "https://github.com/Audio8-AI/Audio8_TTS.git"
 OFFICIAL_REPO_DIR = "Audio8_TTS"
 SAMPLE_RATE = 44100
 
@@ -82,7 +80,8 @@ class Audio8_0_1b_OnnxInt8_API:
         return list(Audio8_voices.values())
 
     def _model_dir(self) -> str:
-        return os.path.abspath(ONNX_MODEL_DIR)
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        return resolve_model_dir(ODDTTS_TYPE.ODDTTS_AUDIO8_0_1B_ONNX_INT8.model_key, env_var="AUDIO8_MODEL_DIR")
 
     def _repo_dir(self) -> str:
         # 1. 项目根目录（开发模式）

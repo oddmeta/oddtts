@@ -18,7 +18,9 @@ oddtts_cfg = {
     "concurrent_thread": 0,
     ## tts type
     "tts_type": ODDTTS_TYPE.ODDTTS_MOSS_NANO,
-    "local_model_dir": "ckpts",
+
+    ## 模型根目录（所有引擎模型存放于此目录下，按 engine.model_key 子目录组织）
+    "model_base_dir": "models",
     ## HTTPS configuration
     "enable_https": False,
     "ssl_cert_path": "scripts/cert.pem",

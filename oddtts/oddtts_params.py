@@ -228,6 +228,24 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_MOSS_NANO = 10
 
     @property
+    def model_key(self):
+        """模型子目录名，用于 model_base_dir/<model_key> 存储模型文件。"""
+        keys = {
+            self.UNKNOWN: '',
+            self.ODDTTS_GPTSOVITS: 'gptsovits',
+            self.ODDTTS_EDGETTS: '',
+            self.ODDTTS_CHATTTS: '',
+            self.ODDTTS_BERTVITS2: '',
+            self.ODDTTS_BERTVITS2_V2: '',
+            self.ODDTTS_KOKORO: 'kokoro',
+            self.ODDTTS_KOKORO_V1_1: 'kokoro_v11',
+            self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'audio8_0_1b',
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'audio8_0_6b',
+            self.ODDTTS_MOSS_NANO: 'moss_nano',
+        }
+        return keys[self]
+
+    @property
     def description(self):
         descriptions = {
             self.UNKNOWN: '未知类型',

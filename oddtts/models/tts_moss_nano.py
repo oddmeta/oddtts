@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 
-from oddtts.utils.model_utils import download_model
+from oddtts.utils.model_utils import download_model, resolve_model_dir
 from oddtts.oddtts_params import TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
@@ -22,7 +22,6 @@ TTS_HF_ID = "OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX"
 CODEC_MODELSCOPE_ID = "openmoss/MOSS-Audio-Tokenizer-Nano-ONNX"
 CODEC_HF_ID = "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX"
 
-MODEL_DIR = os.path.abspath(os.path.join("models", "moss_tts_nano"))
 SAMPLE_RATE = 48000
 
 # 内置音色列表
@@ -58,12 +57,17 @@ class MossNanoAPI:
         # 避免每次合成都重新跑 codec_encode ONNX
         self._prompt_codes_cache: dict[str, list[list[int]]] = {}
 
+    def _model_dir(self) -> str:
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        return resolve_model_dir(ODDTTS_TYPE.ODDTTS_MOSS_NANO.model_key)
+
     def _ensure_models(self) -> None:
         """确保 ONNX 模型已下载（优先 ModelScope）"""
-        os.makedirs(MODEL_DIR, exist_ok=True)
+        model_dir = self._model_dir()
+        os.makedirs(model_dir, exist_ok=True)
 
-        tts_dir = os.path.join(MODEL_DIR, "MOSS-TTS-Nano-100M-ONNX")
-        codec_dir = os.path.join(MODEL_DIR, "MOSS-Audio-Tokenizer-Nano-ONNX")
+        tts_dir = os.path.join(model_dir, "MOSS-TTS-Nano-100M-ONNX")
+        codec_dir = os.path.join(model_dir, "MOSS-Audio-Tokenizer-Nano-ONNX")
 
         # 检查并下载 TTS 模型
         manifest_path = os.path.join(tts_dir, "browser_poc_manifest.json")
@@ -123,7 +127,7 @@ class MossNanoAPI:
 
             cpu_threads = min(os.cpu_count() or 4, 8)
             self.runtime = OnnxTtsRuntime(
-                model_dir=MODEL_DIR,
+                model_dir=self._model_dir(),
                 thread_count=cpu_threads,
                 execution_provider="cpu",
             )

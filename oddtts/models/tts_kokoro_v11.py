@@ -7,7 +7,7 @@ from kokoro import KPipeline, KModel
 import numpy as np
 import torch
 
-from oddtts.utils.model_utils import download_model
+from oddtts.utils.model_utils import download_model, resolve_model_dir
 from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 
@@ -43,6 +43,19 @@ class KokoroAPIV11():
 
     def _init_local_model_dir(self):
         import os
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+
+        # 1. 优先使用配置中的路径（model_base_dir / model_key）
+        config_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        config_path = os.path.join(config_dir, "config.json")
+        model_path = os.path.join(config_dir, self.local_model_name)
+        if os.path.exists(config_path) and os.path.exists(model_path):
+            self.local_model_dir = config_dir
+            logger.info(f"[响应] 找到模型目录（配置）: {self.local_model_dir}")
+            return
+
+        # 2. 回退：探测多个可能路径（兼容旧目录结构）
         possible_dirs = [
             os.path.join(os.getcwd(), "ckpts"),
             os.path.join(os.path.dirname(__file__), "ckpts"),
@@ -53,9 +66,10 @@ class KokoroAPIV11():
             model_path = os.path.join(dir_path, self.local_model_name)
             if os.path.exists(config_path) and os.path.exists(model_path):
                 self.local_model_dir = dir_path
-                logger.info(f"[响应] 找到模型目录: {self.local_model_dir}")
+                logger.info(f"[响应] 找到模型目录（探测）: {self.local_model_dir}")
                 return
-        self.local_model_dir = "ckpts"
+
+        self.local_model_dir = config_dir
         logger.info(f"[响应] 未找到本地模型目录，使用默认路径: {self.local_model_dir}")
     
     async def preload(self, device: str = 'cpu') -> None:
