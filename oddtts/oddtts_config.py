@@ -21,6 +21,8 @@ oddtts_cfg = {
 
     ## 模型根目录（所有引擎模型存放于此目录下，按 engine.model_key 子目录组织）
     "model_base_dir": "models",
+    ## 克隆音色根目录（参考音频和元数据存放于此目录下，按 engine/voice_id 子目录组织）
+    "voices_base_dir": "voices",
     ## HTTPS configuration
     "enable_https": False,
     "ssl_cert_path": "scripts/cert.pem",

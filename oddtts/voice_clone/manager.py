@@ -25,8 +25,12 @@ from oddtts.oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
 
-# 项目根目录下的 voices 文件夹
-_DEFAULT_VOICES_ROOT = Path(__file__).parent.parent.parent / "voices"
+def _get_default_voices_root() -> Path:
+    """返回默认的克隆音色根目录：data_root / voices_base_dir。"""
+    from oddtts.utils.model_utils import get_data_root
+    from oddtts.oddtts_config import oddtts_cfg
+    base = oddtts_cfg.get("voices_base_dir", "voices")
+    return Path(get_data_root()) / base
 
 # 参考音频统一转码为 WAV, 48kHz, 单声道/立体声保持原样
 _TARGET_SAMPLE_RATE = 48000
@@ -93,7 +97,7 @@ class VoiceCloneManager:
     """
 
     def __init__(self, voices_root: str | Path | None = None) -> None:
-        self.voices_root = Path(voices_root) if voices_root else _DEFAULT_VOICES_ROOT
+        self.voices_root = Path(voices_root) if voices_root else _get_default_voices_root()
         self.voices_root.mkdir(parents=True, exist_ok=True)
         logger.info(f"[VoiceClone] 音色根目录: {self.voices_root}")
 
