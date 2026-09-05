@@ -534,6 +534,13 @@ def api_save_config():
         single_tts_driver = None
         single_tts_driver = OddTTSDriver(tts_type)
         
+        # 预加载新引擎的模型（下载模型、克隆仓库、初始化 runtime）
+        try:
+            import asyncio
+            asyncio.run(single_tts_driver.preload())
+        except Exception as e:
+            logger.warning(f"[配置] 新引擎预加载失败（可稍后自动重试）: {e}")
+        
         # 重新加载语音列表
         load_voices()
         

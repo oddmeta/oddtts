@@ -138,6 +138,9 @@ class Audio8_0_6b_OnnxInt4_API:
         if self.runtime is not None:
             return
 
+        self._ensure_model()
+        self._ensure_runtime()
+
         runtime_dir = self._runtime_dir()
         if runtime_dir not in sys.path:
             sys.path.insert(0, runtime_dir)

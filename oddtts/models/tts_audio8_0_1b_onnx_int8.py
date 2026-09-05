@@ -125,10 +125,10 @@ class Audio8_0_1b_OnnxInt8_API:
         if os.path.isdir(repo_dir) and os.path.isdir(self._runtime_dir()):
             logger.info(f"[Audio8] Runtime 已存在: {self._runtime_dir()}")
             return
-        logger.info(f"[Audio8] 克隆官方仓库: {OFFICIAL_REPO_URL}")
+        logger.info("[Audio8] 克隆官方仓库...")
         try:
             subprocess.check_call(
-                ["git", "clone", "--depth", "1", OFFICIAL_REPO_URL, repo_dir],
+                ["git", "clone", "--depth", "1", "https://github.com/Audio8-AI/Audio8_TTS.git", repo_dir],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -139,6 +139,9 @@ class Audio8_0_1b_OnnxInt8_API:
     def _init_runtime(self):
         if self.runtime is not None:
             return
+
+        self._ensure_model()
+        self._ensure_runtime()
 
         runtime_dir = self._runtime_dir()
         if runtime_dir not in sys.path:
