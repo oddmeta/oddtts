@@ -41,6 +41,8 @@ dependencies = [
     "sentencepiece>=0.1.99",
     "torchaudio>=2.0.0",
     "uvicorn>=0.29.0",
+    # Audio8 dependencies
+    "scipy==1.17.1",
 ]
 
 [project.urls]

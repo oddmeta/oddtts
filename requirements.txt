@@ -20,3 +20,4 @@ python-multipart>=0.0.9
 sentencepiece>=0.1.99
 torchaudio>=2.0.0
 uvicorn>=0.29.0
+scipy==1.17.1

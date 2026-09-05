@@ -5,6 +5,7 @@ import time
 import shutil
 import subprocess
 import importlib.util
+from pathlib import Path
 
 import numpy as np
 
@@ -218,8 +219,8 @@ class Audio8_0_1b_OnnxInt8_API:
 
         try:
             reg = VoiceRegistration(
-                registration_dir=self._model_dir(),
-                voices_root=self._voices_dir(),
+                registration_dir=Path(self._model_dir()) / "registration",
+                voices_root=Path(self._voices_dir()),
                 model_fingerprint=str(self.runtime.manifest.get("model_fingerprint", "")),
             )
             status = reg.status()
