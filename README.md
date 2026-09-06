@@ -4,7 +4,9 @@
 
 # OddTTS - Multi-Engine TTS Speech Synthesis API Server (Compatible with OpenAI TTS API)
 
-OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ChatTTS, Bert-VITS2, GptSovits v2, etc., and also supports OpenAI TTS API calls.
+OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ChatTTS, Bert-VITS2, GptSovits v2, Moss-TTS-Nano, Audio8, etc., and also supports OpenAI TTS API calls.
+
+> **v2.0 Highlight: Voice Cloning** — Upload a 3-10 second reference audio to clone any voice, then use it like a built-in voice via API or Web UI.
 
 > Notes:
 > - Model files will be downloaded automatically on the first run.
@@ -14,9 +16,13 @@ OddTTS is a powerful multi-engine text-to-speech synthesis service that provides
 >   - ChatTTS model: 2.4GB (FP16 precision).
 >   - Bert-VITS2 model: ~2GB (backbone + BERT feature network; each additional language requires ~1.3GB more).
 >   - GptSovits v2 model: ~2.5GB.
+>   - Moss-TTS-Nano 0.1B ONNX: ~200MB (pure CPU, ~20 languages).
+>   - Audio8 0.1B ONNX INT8: ~150MB (pure CPU, 11 languages).
+>   - Audio8 0.6B ONNX INT4: ~400MB (pure CPU, 11 languages).
 > - VRAM requirements:
 >   - EdgeTTS model: 0MB.
 >   - Kokoro-82M-v1.1-zh model: 0MB (runs on ordinary CPU).
+>   - Moss-TTS-Nano / Audio8 models: 0MB (pure CPU).
 >   - ChatTTS model: at least 2.5GB.
 >   - Bert-VITS2 model: at least 5GB. For few-shot fine-tuning, a GPU with 24GB+ VRAM is recommended.
 >   - GptSovits v2 model: at least 8GB. For few-shot fine-tuning, a GPU with 24GB/48GB+ VRAM is recommended.
@@ -39,10 +45,11 @@ Considering the wide range of uses for TTS functionality, I separated it out and
 
 ### 2. Why Choose OddTTS?
 
-- **Multi-Engine Support**: Integrates EdgeTTS, Kokoro, ChatTTS, Bert-VITS2, GptSovits, and other TTS engines.
+- **Multi-Engine Support**: Integrates EdgeTTS, Kokoro, ChatTTS, Bert-VITS2, GptSovits, Moss-TTS-Nano, Audio8, and other TTS engines.
+- **Voice Cloning**: Upload a reference audio to clone any voice, usable via API and Web UI (v2.0+).
 - **Multiple Calling Methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods.
-- **User-Friendly Web UI**: Provides a visual operation interface based on Gradio.
-- **RESTful API**: Provides a complete REST API for easy integration into other systems.
+- **User-Friendly Web UI**: Provides a visual operation interface with voice cloning management panel.
+- **RESTful API**: Provides a complete REST API for easy integration into other systems, including OpenAI-compatible endpoints.
 - **Highly Configurable**: Supports GPU acceleration, concurrent thread adjustment, model preloading, and other configuration options.
 - **Cross-Platform Compatibility**: Developed based on Python, supports Windows, Linux, macOS, and other operating systems.
 
@@ -52,6 +59,9 @@ Considering the wide range of uses for TTS functionality, I separated it out and
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Depends on your network speed |
 | Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Medium |
 | ChatTTS | 2.5GB | 4GB | 6GB+ | 1.5GB | 1GB | Yes | Relatively fast |
 | Bert-VITS2 | 5GB | 6GB | 8GB+ | 3GB | 2GB | Yes | Medium |
 | GPT-SoVITS v2 | 8GB | 10GB | 12GB+ | 4GB | 2.5GB | Not recommended | Slow |
@@ -170,6 +180,51 @@ GET /oddtts/health
 - **Function**: Check if the service is running normally.
 - **Return**: `{"status": "healthy", "message": "API service is running normally"}`
 
+#### 8) Voice Cloning - Upload & Register Voice
+
+```
+POST /api/voice/clone
+```
+
+- **Function**: Upload a reference audio file and register it as a custom voice.
+- **Content-Type**: `multipart/form-data`
+- **Form Fields**:
+  - `audio_file` — Reference audio file (wav/mp3/flac, recommended 3-10 seconds)
+  - `name` — Voice identifier (e.g., `xiaoming`)
+  - `display_name` — Display name (e.g., `小明`)
+  - `engine` — Target engine (default: `moss_nano`)
+  - `locale` — Language (default: `zh-CN`)
+- **Return**: Voice information JSON on success.
+
+#### 9) Voice Cloning - List Cloned Voices
+
+```
+GET /api/voice/clone/list
+```
+
+- **Function**: List all custom cloned voices.
+- **Query Parameter**: `engine` (optional) — Filter by engine name.
+- **Return**: Array of cloned voice objects.
+
+#### 10) Voice Cloning - Delete Cloned Voice
+
+```
+DELETE /api/voice/clone/<engine>/<voice_id>
+```
+
+- **Function**: Delete a cloned voice and its reference audio.
+- **Return**: Success/failure JSON.
+
+#### 11) Voice Cloning - Preview Reference Audio
+
+```
+GET /api/voice/clone/audio/<engine>/<voice_id>
+```
+
+- **Function**: Play/download the reference audio of a cloned voice.
+- **Return**: Audio binary stream (WAV format).
+
+> **Note**: Cloned voices are automatically merged into the voice list (`/v1/audio/voice/list`). You can use them directly in the OpenAI-compatible API by passing the voice identifier as the `voice` parameter.
 
 ### 2. API Call Examples
 
@@ -273,15 +328,33 @@ async function generateTTS(text, voice) {
 generateTTS('Welcome to follow my WeChat official account: Aodeyuan. Let\'s learn AI together and keep up with the times!', 'zm_011');
 ```
 
+#### 5) Voice Cloning Example (curl)
+
+```bash
+# Upload reference audio and register a cloned voice
+curl -X POST http://localhost:9001/api/voice/clone \
+  -F "audio_file=@reference.wav" \
+  -F "name=xiaoming" \
+  -F "display_name=小明" \
+  -F "engine=moss_nano"
+
+# Use the cloned voice via OpenAI-compatible API
+curl -X POST http://localhost:9001/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": \"你好，这是克隆音色测试\", \"voice\": \"xiaoming\"}" \
+  --output cloned_speech.mp3
+```
+
 ## IV. Web Interface Usage
 
-After the service starts, you can open the Gradio Web UI by visiting `http://localhost:9001/` in your browser. It supports the following features:
+After the service starts, you can open the Web UI by visiting `http://localhost:9001/` in your browser. It supports the following features:
 
 - Text input area: Enter the text to be converted to speech.
-- Voice selection: Choose different voices and languages.
+- Voice selection: Choose different voices and languages (including cloned voices marked with 🎤).
 - Parameter adjustment: Adjust speech rate, volume, pitch, and other parameters.
 - Audio generation: Click the button to generate and play speech.
 - Audio download: Download the generated audio file.
+- **Voice Cloning Panel**: Upload reference audio, manage cloned voices, preview and delete.
 
 ## V. Frequently Asked Questions
 

@@ -4,7 +4,9 @@
 
 # OddTTS - 多引擎TTS语音合成API封装(兼容OpenAI TTS API)
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ChatTTS、Bert-VITS2、GptSovits v2等，同时也支持OpenAI TTS API的调用。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ChatTTS、Bert-VITS2、GptSovits v2、Moss-TTS-Nano、Audio8等，同时也支持OpenAI TTS API的调用。
+
+> **v2.0 亮点：音色克隆** — 上传一段 3-10 秒的参考音频即可克隆任意音色，通过 API 或 Web 界面像内置音色一样使用。
 
 > 注意：
 > - 首次运行时，会自动下载模型文件。
@@ -14,9 +16,13 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 >   - ChatTTS模型：2.4GB（FP16精度）。
 >   - Bert-VITS2模型：2GB 左右（主干+BERT特征网络，每多一个语种需增加约1.3GB）。
 >   - GptSovits v2模型：2.5GB左右。
+>   - Moss-TTS-Nano 0.1B ONNX：约200MB（纯CPU，近20种语言）。
+>   - Audio8 0.1B ONNX INT8：约150MB（纯CPU，11种语言）。
+>   - Audio8 0.6B ONNX INT4：约400MB（纯CPU，11种语言）。
 > - 显存需求：
 >   - EdgeTTS模型：0MB。
 >   - Kokoro-82M-v1.1-zh模型：0MB（普通CPU可运行）。
+>   - Moss-TTS-Nano / Audio8 模型：0MB（纯CPU）。
 >   - ChatTTS模型：至少 2.5GB。
 >   - Bert-VITS2模型：至少 5GB。少样本微调训练，建议使用显存 24GB 以上的 GPU。
 >   - GptSovits v2模型：至少 8GB。少样本微调训练，建议使用显存 24GB/48GB 以上的 GPU。
@@ -39,10 +45,11 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 
 ### 2. 为什么建议你选择OddTTS？
 
-- **多引擎支持**：集成了EdgeTTS、Kokoro、ChatTTS、Bert-VITS2、GptSovits等多种TTS引擎
+- **多引擎支持**：集成了EdgeTTS、Kokoro、ChatTTS、Bert-VITS2、GptSovits、Moss-TTS-Nano、Audio8等多种TTS引擎
+- **音色克隆**：上传参考音频即可克隆任意音色，通过 API 和 Web 界面直接使用（v2.0+）
 - **多种调用方式**：支持文件路径返回、Base64编码返回、流式响应等多种输出方式
-- **友好的Web界面**：基于Gradio提供可视化操作界面
-- **RESTful API**：提供完整的REST API，便于集成到其他系统
+- **友好的Web界面**：提供可视化操作界面，含音色克隆管理面板
+- **RESTful API**：提供完整的REST API，便于集成到其他系统，兼容 OpenAI Audio API
 - **可配置性强**：支持GPU加速、并发线程数调整、模型预加载等配置选项
 - **跨平台兼容**：基于Python开发，支持Windows、Linux、macOS等多种操作系统
 
@@ -52,6 +59,9 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 依赖于你的网速 |
 | Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 中等 |
 | ChatTTS | 2.5GB | 4GB | 6GB+ | 1.5GB | 1GB | ✅ 可以 | 较快 |
 | Bert-VITS2 | 5GB | 6GB | 8GB+ | 3GB | 2GB | ✅ 可以 | 中等 |
 | GPT-SoVITS v2 | 8GB | 10GB | 12GB+ | 4GB | 2.5GB | ❌ 不建议 | 较慢 |
@@ -170,6 +180,52 @@ GET /oddtts/health
 - **功能**：检查服务是否正常运行
 - **返回**：`{\"status\": \"healthy\", \"message\": \"API服务运行正常\"}`
 
+#### 8）音色克隆 - 上传并注册音色
+
+```
+POST /api/voice/clone
+```
+
+- **功能**：上传参考音频文件并注册为自定义音色
+- **Content-Type**：`multipart/form-data`
+- **表单字段**：
+  - `audio_file` — 参考音频文件（wav/mp3/flac，建议 3-10 秒）
+  - `name` — 音色标识（如 `xiaoming`）
+  - `display_name` — 展示名称（如 `小明`）
+  - `engine` — 目标引擎（默认 `moss_nano`）
+  - `locale` — 语言（默认 `zh-CN`）
+- **返回**：音色信息 JSON
+
+#### 9）音色克隆 - 列出自定义音色
+
+```
+GET /api/voice/clone/list
+```
+
+- **功能**：列出所有自定义克隆音色
+- **查询参数**：`engine`（可选）— 按引擎筛选
+- **返回**：克隆音色数组
+
+#### 10）音色克隆 - 删除克隆音色
+
+```
+DELETE /api/voice/clone/<engine>/<voice_id>
+```
+
+- **功能**：删除克隆音色及其参考音频
+- **返回**：成功/失败 JSON
+
+#### 11）音色克隆 - 试听参考音频
+
+```
+GET /api/voice/clone/audio/<engine>/<voice_id>
+```
+
+- **功能**：播放/下载克隆音色的参考音频
+- **返回**：音频二进制流（WAV 格式）
+
+> **注意**：克隆音色会自动合并到语音列表（`/v1/audio/voice/list`）中，可直接在 OpenAI 兼容 API 中通过 `voice` 参数使用。
+
 
 ### 2. API调用示例
 
@@ -273,15 +329,33 @@ async function generateTTS(text, voice) {
 generateTTS('欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！', 'zm_011');
 ```
 
+#### 5）音色克隆示例（curl）
+
+```bash
+# 上传参考音频并注册克隆音色
+curl -X POST http://localhost:9001/api/voice/clone \
+  -F "audio_file=@reference.wav" \
+  -F "name=xiaoming" \
+  -F "display_name=小明" \
+  -F "engine=moss_nano"
+
+# 通过 OpenAI 兼容 API 使用克隆音色
+curl -X POST http://localhost:9001/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": \"你好，这是克隆音色测试\", \"voice\": \"xiaoming\"}" \
+  --output cloned_speech.mp3
+```
+
 ## 四、Web界面使用
 
-服务启动后，可以通过浏览器访问 `http://localhost:9001/` 打开Gradio Web界面，支持以下功能：
+服务启动后，可以通过浏览器访问 `http://localhost:9001/` 打开 Web 界面，支持以下功能：
 
 - 文本输入区域：输入要转换为语音的文本
-- 语音选择：选择不同的语音和语言
+- 语音选择：选择不同的语音和语言（克隆音色带 🎤 标记）
 - 参数调整：调整语速、音量、音调等参数
 - 音频生成：点击按钮生成并播放语音
 - 音频下载：下载生成的语音文件
+- **音色克隆面板**：上传参考音频、管理克隆音色、试听和删除
 
 ## 五、常见问题
 

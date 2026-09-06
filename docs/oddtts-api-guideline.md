@@ -1,8 +1,10 @@
 # OddTTS API 接口文档
 
-OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 `OpenAI Audio API` 标准。支持多种 TTS 引擎，包括 `EdgeTTS`、`Kokoro`、`Kokorov1.1`(支持中英混合)、`ChatTTS`、`Bert-VITS2`、`OddGPT-SoVITS v2` 等。
+OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 `OpenAI Audio API` 标准。支持多种 TTS 引擎，包括 `EdgeTTS`、`Kokoro`、`Kokorov1.1`(支持中英混合)、`ChatTTS`、`Bert-VITS2`、`OddGPT-SoVITS v2`、`MOSS-TTS-Nano`、`Audio8` 等。
 
 <font color=red><b>OddTTS支持私有协议接口，也支持标准的 OpenAI Audio API 接口。没有特殊需求，推荐使用 OpenAI Audio API 接口。</b></font>
+
+<font color=red><b>v2.0 新增：音色克隆支持 — 上传参考音频即可克隆任意音色，通过 API 或 Web 界面使用。</b></font>
 
 ## 1. 系统管理 API
 
@@ -303,16 +305,151 @@ print(f"Audio saved to {speech_file_path}")
 成功: 直接返回音频二进制流（Binary Stream）。
 失败: 返回 JSON 格式的错误信息。
 
-## 6. 配置管理 API
+## 6. 音色克隆 API
 
-### 6.1 获取 TTS 类型列表
+### 6.1 上传参考音频并注册音色
+
+上传一段参考音频（建议 3-10 秒），注册为自定义音色。
+
+- 端点: POST `/api/voice/clone`
+- Content-Type: `multipart/form-data`
+
+#### 6.1.1 请求参数
+
+|参数名|类型|必填|默认值|说明|
+|--|--|--|--|--|
+|audio_file | File	| 是 | -	| 参考音频文件（wav/mp3/flac）|
+|name | String	| 是 | -	| 音色标识（字母、数字、下划线、连字符，1-64字符）|
+|display_name | String	| 否 | name的值	| 展示名称（如"小明"）|
+|engine | String	| 否 | moss_nano	| 目标引擎：moss_nano / audio8_0_1b / audio8_0_6b|
+|locale | String	| 否 | zh-CN	| 语言区域|
+
+#### 6.1.2 请求示例 (cURL)
+
+```bash
+curl -X POST http://localhost:8000/api/voice/clone \
+  -F "audio_file=@reference.wav" \
+  -F "name=xiaoming" \
+  -F "display_name=小明" \
+  -F "engine=moss_nano"
+```
+
+#### 6.1.3 响应示例
+
+```json
+{
+  "success": true,
+  "voice": {
+    "name": "xiaoming",
+    "display_name": "小明",
+    "engine": "moss_nano",
+    "locale": "zh-CN"
+  }
+}
+```
+
+### 6.2 列出自定义音色
+
+获取所有已注册的自定义克隆音色。
+
+- 端点: GET `/api/voice/clone/list`
+- Content-Type: `application/json`
+
+#### 6.2.1 请求参数
+
+|参数名|类型|必填|说明|
+|--|--|--|--|
+|engine | String	| 否 | 按引擎筛选（如 moss_nano、audio8_0_1b）|
+
+#### 6.2.2 响应示例
+
+```json
+{
+  "success": true,
+  "voices": [
+    {
+      "name": "xiaoming",
+      "display_name": "小明",
+      "engine": "moss_nano",
+      "locale": "zh-CN"
+    }
+  ]
+}
+```
+
+### 6.3 删除克隆音色
+
+删除指定的克隆音色及其参考音频文件。
+
+- 端点: DELETE `/api/voice/clone/<engine>/<voice_id>`
+- Content-Type: `application/json`
+
+#### 6.3.1 请求示例 (cURL)
+
+```bash
+curl -X DELETE http://localhost:8000/api/voice/clone/moss_nano/xiaoming
+```
+
+#### 6.3.2 响应示例
+
+```json
+{
+  "success": true,
+  "message": "Voice 'xiaoming' deleted"
+}
+```
+
+### 6.4 试听参考音频
+
+播放/下载指定克隆音色的参考音频。
+
+- 端点: GET `/api/voice/clone/audio/<engine>/<voice_id>`
+- 返回: 音频二进制流（WAV 格式）
+
+#### 6.4.1 请求示例 (cURL)
+
+```bash
+curl "http://localhost:8000/api/voice/clone/audio/moss_nano/xiaoming" --output reference.wav
+```
+
+### 6.5 克隆音色使用说明
+
+- 克隆音色注册后，会自动合并到语音列表（`/v1/audio/voice/list`）中
+- 在 TTS 合成 API 中，直接将 `voice` 参数设置为克隆音色的 `name` 即可使用
+- OpenAI 兼容 API 同样支持：`POST /v1/audio/speech` 的 `voice` 字段传入克隆音色名称
+
+**使用示例**：
+
+```bash
+# 使用克隆音色进行合成（OpenAI 兼容 API）
+curl -X POST http://localhost:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "你好，这是克隆音色测试。",
+    "voice": "xiaoming",
+    "response_format": "mp3"
+  }' \
+  --output cloned_speech.mp3
+```
+
+### 6.6 支持克隆的引擎
+
+| 引擎 | engine 参数值 | 说明 |
+|------|--------------|------|
+| MOSS-TTS-Nano 0.1B | `moss_nano` | OpenMOSS 轻量级多语言 TTS，纯 CPU |
+| Audio8 0.1B ONNX INT8 | `audio8_0_1b` | Audio8 0.1B，纯 CPU，11 种语言 |
+| Audio8 0.6B ONNX INT4 | `audio8_0_6b` | Audio8 0.6B，纯 CPU，11 种语言 |
+
+## 7. 配置管理 API
+
+### 7.1 获取 TTS 类型列表
 
 获取所有支持的 TTS 引擎类型及当前配置。
 
 - 端点: GET `/api/config/tts-types`
 - Content-Type: `application/json`
 
-#### 6.1.1 响应示例
+#### 7.1.1 响应示例
 
 ```json
 {
@@ -358,6 +495,24 @@ print(f"Audio saved to {speech_file_path}")
       "name": "ODDTTS_KOKORO_V1_1",
       "description": "Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）",
       "enable": true
+    },
+    {
+      "value": 8,
+      "name": "ODDTTS_AUDIO8_0_1B_ONNX_INT8",
+      "description": "Audio8 0.1B ONNX INT8 - Audio8 0.1B语音合成（纯CPU，11种语言，44.1kHz）",
+      "enable": true
+    },
+    {
+      "value": 9,
+      "name": "ODDTTS_AUDIO8_0_6B_ONNX_INT4",
+      "description": "Audio8 0.6B ONNX INT4 - Audio8 0.6B语音合成（纯CPU，11种语言，44.1kHz）",
+      "enable": true
+    },
+    {
+      "value": 10,
+      "name": "ODDTTS_MOSS_NANO",
+      "description": "MOSS-TTS-Nano 0.1B ONNX - OpenMOSS轻量级多语言TTS（纯CPU，近20种语言，48kHz）",
+      "enable": true
     }
   ],
   "current": {
@@ -369,20 +524,20 @@ print(f"Audio saved to {speech_file_path}")
 }
 ```
 
-### 6.2 保存配置
+### 7.2 保存配置
 
 更新 TTS 引擎配置并自动生效。
 
 - 端点: POST `/api/config/save`
 - Content-Type: `application/json`
 
-#### 6.2.1 请求参数
+#### 7.2.1 请求参数
 
 |参数名|类型|必填|说明|
 |--|--|--|--|
-|tts_type | Integer	| 是 | TTS 类型的值，参考 6.1 中的 value|
+|tts_type | Integer	| 是 | TTS 类型的值，参考 7.1 中的 value|
 
-#### 6.2.2 请求示例
+#### 7.2.2 请求示例
 
 ```bash
 curl http://localhost:8000/api/config/save \
@@ -392,7 +547,7 @@ curl http://localhost:8000/api/config/save \
   }'
 ```
 
-#### 6.2.3 响应示例
+#### 7.2.3 响应示例
 
 ```json
 {
@@ -401,7 +556,7 @@ curl http://localhost:8000/api/config/save \
 }
 ```
 
-## 7. 注意事项
+## 8. 注意事项
 
 - API Key:
 
@@ -429,6 +584,16 @@ curl http://localhost:8000/api/config/save \
   - Bert-VITS2: 需 4G 以上 GPU，支持多语言。
   - Kokoro: 纯 CPU 运行，适合资源受限环境。
   - Kokoro V1.1: Kokoro 的 1.1 版本，支持中英混合。
+  - MOSS-TTS-Nano: 纯 CPU 运行，近 20 种语言，支持音色克隆。
+  - Audio8 0.1B: 纯 CPU 运行，11 种语言，支持音色克隆。
+  - Audio8 0.6B: 纯 CPU 运行，11 种语言，支持音色克隆。
+
+- 音色克隆:
+
+  - 支持引擎：MOSS-TTS-Nano、Audio8 0.1B、Audio8 0.6B。
+  - 操作方式：通过 `/api/voice/clone` 上传参考音频注册音色，或通过 Web 界面"音色克隆"标签页操作。
+  - 使用方式：克隆音色注册后，直接在 TTS 合成 API 的 `voice` 参数中传入音色名称即可。
+  - OpenAI 兼容 API 同样支持：`POST /v1/audio/speech` 的 `voice` 字段传入克隆音色名称。
 
 - 与 OpenAI 的差异:
 
@@ -436,7 +601,7 @@ curl http://localhost:8000/api/config/save \
   - 音色支持: 支持的 voice 列表取决于当前选择的 TTS 引擎。
   - 参数调整: 原生 API 支持 rate、volume、pitch 三维参数调整，OpenAI API 仅支持 speed 参数。
 
-## 8. 错误码说明
+## 9. 错误码说明
 
 遵循 HTTP 标准状态码及 OpenAI 错误格式：
 
