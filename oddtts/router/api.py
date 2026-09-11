@@ -39,25 +39,25 @@ async def get_voices(type: ODDTTS_TYPE):
         return []
     return await single_tts_driver.get_voices(type=type)
 
-async def generate_tts_file(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None):
+async def generate_tts_file(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
     logger.debug(f"[辅助] generate_tts_file调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
-    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
     if single_tts_driver is None:
         return ""
     return await single_tts_driver.generate_tts_file(tts_type=type, text=text, tts_params=tts_params)
 
-async def generate_tts_bytes(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None):
+async def generate_tts_bytes(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
     logger.debug(f"[辅助] generate_tts_bytes调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
-    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
     if single_tts_driver is None:
         return ""
     return await single_tts_driver.generate_tts_bytes(tts_type=type, text=text, tts_params=tts_params)
 
-async def generate_tts_stream(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None):
+async def generate_tts_stream(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
     logger.debug(f"[辅助] generate_tts_stream调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
     if single_tts_driver is None:
         return
-    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path)
+    tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
     async for chunk in single_tts_driver.generate_tts_stream(tts_type=type, text=text, tts_params=tts_params):
         yield chunk
 
@@ -129,11 +129,12 @@ def api_tts_file():
     logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
     
     prompt_audio_path = data.get("prompt_audio_path")
+    prompt_text = data.get("prompt_text")
     
     type = config.oddtts_cfg["tts_type"]
     generation_start = time.time()
     try:
-        audio_path = asyncio.run(generate_tts_file(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path))
+        audio_path = asyncio.run(generate_tts_file(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text))
         generation_time = time.time() - generation_start
 
         # 计算音频时长和 RTF
@@ -189,9 +190,10 @@ def api_tts_base64():
     logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
     
     prompt_audio_path = data.get("prompt_audio_path")
+    prompt_text = data.get("prompt_text")
     
     try:
-        audio_bytes = asyncio.run(generate_tts_bytes(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path))
+        audio_bytes = asyncio.run(generate_tts_bytes(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text))
         if not audio_bytes:
             base64_str = ""
         else:
@@ -228,6 +230,7 @@ def api_tts_stream():
     locale = data.get("locale", "zh-CN")
     response_format = data.get("response_format", "wav")
     prompt_audio_path = data.get("prompt_audio_path")
+    prompt_text = data.get("prompt_text")
     
     logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
     
@@ -244,7 +247,7 @@ def api_tts_stream():
     
     async def async_generate():
         try:
-            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path):
+            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text):
                 yield chunk
         
             generation_time = time.time() - generation_start_time
@@ -392,6 +395,7 @@ def openai_create_speech():
     locale = data.get("locale", "zh-CN")
     type = config.oddtts_cfg["tts_type"]
     prompt_audio_path = data.get("prompt_audio_path")
+    prompt_text = data.get("prompt_text")
     
     logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 格式: {response_format}")
     
@@ -400,7 +404,7 @@ def openai_create_speech():
     async def async_generate():
         audio_buffer = io.BytesIO()
         try:
-            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=0, pitch=0, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path):
+            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=0, pitch=0, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text):
                 audio_buffer.write(chunk)
                 yield chunk
             
@@ -589,12 +593,15 @@ def api_clone_voice():
         engine = request.form.get("engine", "").strip()
         locale = request.form.get("locale", "zh-CN").strip()
         gender = request.form.get("gender", "Unknown").strip()
+        prompt_text = request.form.get("prompt_text", "").strip() or None
 
         # 未指定 engine 时，从当前 TTS 类型推导
         if not engine:
             current_type = config.oddtts_cfg.get("tts_type")
             if current_type == ODDTTS_TYPE.ODDTTS_MOSS_NANO:
                 engine = "moss_nano"
+            elif current_type == ODDTTS_TYPE.ODDTTS_ZIPVOICE:
+                engine = "zipvoice"
             else:
                 engine = current_type.name.lower().replace("oddtts_", "")
 
@@ -612,6 +619,7 @@ def api_clone_voice():
             audio_file_path=tmp_path,
             locale=locale,
             gender=gender,
+            prompt_text=prompt_text,
         )
 
         # 清理临时文件

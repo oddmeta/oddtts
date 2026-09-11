@@ -175,6 +175,7 @@ class VoiceCloneManager:
                         "engine": meta.get("engine", eng),
                         "is_cloned": True,
                         "created_at": meta.get("created_at", ""),
+                        "prompt_text": meta.get("prompt_text"),
                     }
                 )
 
@@ -185,7 +186,7 @@ class VoiceCloneManager:
         meta = self._load_meta(engine, voice_id)
         if meta is None:
             return None
-        return {
+        result = {
             "name": meta.get("voice_id", voice_id),
             "short_name": meta.get("voice_id", voice_id),
             "display_name": meta.get("display_name", voice_id),
@@ -196,11 +197,22 @@ class VoiceCloneManager:
             "created_at": meta.get("created_at", ""),
             "audio_path": str(self._audio_path(engine, voice_id)),
         }
+        # 返回 prompt_text（如果有）
+        if meta.get("prompt_text"):
+            result["prompt_text"] = meta["prompt_text"]
+        return result
 
     def get_audio_path(self, engine: str, voice_id: str) -> str | None:
         """返回克隆音色的参考音频路径，如不存在则返回 None。"""
         p = self._audio_path(engine, voice_id)
         return str(p) if p.exists() else None
+
+    def get_prompt_text(self, engine: str, voice_id: str) -> str | None:
+        """返回克隆音色的参考文本，如不存在则返回 None。"""
+        meta = self._load_meta(engine, voice_id)
+        if meta and meta.get("prompt_text"):
+            return meta["prompt_text"]
+        return None
 
     def save_voice(
         self,
@@ -210,6 +222,7 @@ class VoiceCloneManager:
         audio_file_path: str | Path,
         locale: str = "zh-CN",
         gender: str = "Unknown",
+        prompt_text: str | None = None,
     ) -> dict[str, Any]:
         """保存新的克隆音色。
 
@@ -220,6 +233,7 @@ class VoiceCloneManager:
             audio_file_path: 上传的原始音频文件路径。
             locale: 语种，默认 ``"zh-CN"``。
             gender: 性别，默认 ``"Unknown"``。
+            prompt_text: 参考音频的文本内容（用于需要文本的 TTS 引擎）。
 
         Returns:
             保存后的音色信息字典。
@@ -245,6 +259,10 @@ class VoiceCloneManager:
             "is_cloned": True,
             "source_audio_name": Path(audio_file_path).name,
         }
+
+        # 保存 prompt_text（如果提供）
+        if prompt_text:
+            meta["prompt_text"] = prompt_text
 
         with open(vdir / "meta.json", "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)

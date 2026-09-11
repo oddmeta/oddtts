@@ -18,7 +18,7 @@ class TTSParams:
     locale: str
     response_format: str
 
-    def __init__(self, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None) -> None:
+    def __init__(self, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None) -> None:
         self.voice = voice
         self.rate = rate
         self.volume = volume
@@ -26,6 +26,7 @@ class TTSParams:
         self.locale = locale
         self.response_format = response_format
         self.prompt_audio_path = prompt_audio_path
+        self.prompt_text = prompt_text
 
 
 def new_uuid():
@@ -226,6 +227,8 @@ class ODDTTS_TYPE(Enum):
     ODDTTS_AUDIO8_0_6B_ONNX_INT4 = 9
     # MOSS-TTS-Nano 0.1B ONNX
     ODDTTS_MOSS_NANO = 10
+    # ZipVoice 官方 PyTorch 实现
+    ODDTTS_ZIPVOICE = 11
 
     @property
     def model_key(self):
@@ -242,6 +245,7 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'audio8_0_1b',
             self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'audio8_0_6b',
             self.ODDTTS_MOSS_NANO: 'moss_nano',
+            self.ODDTTS_ZIPVOICE: 'zipvoice',
         }
         return keys[self]
 
@@ -258,7 +262,8 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_KOKORO_V1_1: 'Kokoro V1.1 - Kokoro引擎的1.1版本（纯CPU，中英混合）',
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'Audio8 0.1B ONNX INT8 - Audio8 0.1B ONNX INT8 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
             self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'Audio8 0.6B ONNX INT4 - Audio8 0.6B ONNX INT4 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
-            self.ODDTTS_MOSS_NANO: 'MOSS-TTS-Nano 0.1B ONNX - OpenMOSS 轻量级多语言TTS（纯CPU，近20种语言，48kHz）'
+            self.ODDTTS_MOSS_NANO: 'MOSS-TTS-Nano 0.1B ONNX - OpenMOSS 轻量级多语言TTS（纯CPU，近20种语言，48kHz）',
+            self.ODDTTS_ZIPVOICE: 'ZipVoice - 基于 PyTorch 的零样本音色克隆TTS（需GPU，支持中英混合）'
         }
         return descriptions[self]
 
@@ -275,7 +280,8 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_KOKORO_V1_1: True,
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: True,
             self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: True,
-            self.ODDTTS_MOSS_NANO: True
+            self.ODDTTS_MOSS_NANO: True,
+            self.ODDTTS_ZIPVOICE: True
         }
         return enabled[self]
 

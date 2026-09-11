@@ -121,7 +121,7 @@ def test_zipvoice_official():
             "--prompt-text", ref_text,
             "--text", text,
             "--res-wav-path", str(output_file),
-            "--num-steps", "8",  # 默认步数
+            "--num-step", "8",  # 默认步数
         ]
         
         print(f"命令: {' '.join(cmd[2:])}")  # 不显示 python 路径
@@ -134,6 +134,15 @@ def test_zipvoice_official():
             import os
             env = os.environ.copy()
             env['HF_ENDPOINT'] = 'https://hf-mirror.com'
+            
+            # 将 ZipVoice 目录添加到 PYTHONPATH
+            zipvoice_dir_abs = Path("ZipVoice").resolve()
+            if 'PYTHONPATH' not in env:
+                env['PYTHONPATH'] = str(zipvoice_dir_abs)
+            else:
+                env['PYTHONPATH'] = str(zipvoice_dir_abs) + os.pathsep + env['PYTHONPATH']
+            
+            print(f"PYTHONPATH: {env['PYTHONPATH']}")
             
             result = subprocess.run(
                 cmd,
