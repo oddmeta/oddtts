@@ -706,6 +706,37 @@ def api_delete_cloned_voice(engine, voice_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@bp_api.route('/api/voice/clone/<engine>/<voice_id>', methods=['PUT'])
+def api_update_cloned_voice(engine, voice_id):
+    """更新克隆音色元数据。"""
+    start_time = time.time()
+    logger.info(f"[请求] 更新克隆音色 - engine={engine}, voice_id={voice_id}")
+
+    try:
+        data = request.json or {}
+        manager = get_voice_clone_manager()
+        result = manager.update_voice(
+            engine=engine,
+            voice_id=voice_id,
+            display_name=data.get("display_name"),
+            locale=data.get("locale"),
+            gender=data.get("gender"),
+            prompt_text=data.get("prompt_text"),
+        )
+        if result is None:
+            return jsonify({"success": False, "error": "音色不存在"}), 404
+
+        load_voices()
+
+        elapsed_time = time.time() - start_time
+        logger.info(f"[响应] 克隆音色更新成功 - 耗时: {elapsed_time:.3f}秒")
+        return jsonify({"success": True, "voice": result})
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"[错误] 克隆音色更新失败 - {e}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @bp_api.route('/api/voice/clone/audio/<engine>/<voice_id>', methods=['GET'])
 def api_play_cloned_voice_audio(engine, voice_id):
     """试听克隆音色的参考音频。"""

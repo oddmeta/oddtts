@@ -270,6 +270,50 @@ class VoiceCloneManager:
         logger.info(f"[VoiceClone] 已保存音色 [{engine}/{sid}]: {meta['display_name']}")
         return meta
 
+    def update_voice(
+        self,
+        engine: str,
+        voice_id: str,
+        display_name: str | None = None,
+        locale: str | None = None,
+        gender: str | None = None,
+        prompt_text: str | None = None,
+    ) -> dict[str, Any] | None:
+        """更新克隆音色的元数据（不含音频）。
+
+        Returns:
+            更新后的音色信息字典，音色不存在时返回 None。
+        """
+        meta = self._load_meta(engine, voice_id)
+        if meta is None:
+            return None
+
+        if display_name is not None:
+            meta["display_name"] = display_name.strip() or voice_id
+        if locale is not None:
+            meta["locale"] = locale.strip()
+        if gender is not None:
+            meta["gender"] = gender.strip()
+        if prompt_text is not None:
+            meta["prompt_text"] = prompt_text.strip() if prompt_text.strip() else None
+
+        vdir = self._voice_dir(engine, voice_id)
+        with open(vdir / "meta.json", "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"[VoiceClone] 已更新音色 [{engine}/{voice_id}]")
+        return {
+            "name": meta.get("voice_id", voice_id),
+            "short_name": meta.get("voice_id", voice_id),
+            "display_name": meta.get("display_name", voice_id),
+            "gender": meta.get("gender", "Unknown"),
+            "locale": meta.get("locale", "zh-CN"),
+            "engine": meta.get("engine", engine),
+            "is_cloned": True,
+            "created_at": meta.get("created_at", ""),
+            "prompt_text": meta.get("prompt_text"),
+        }
+
     def delete_voice(self, engine: str, voice_id: str) -> bool:
         """删除克隆音色，返回是否成功。"""
         vdir = self._voice_dir(engine, voice_id)
