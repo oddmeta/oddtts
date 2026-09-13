@@ -1,6 +1,6 @@
 # OddTTS API 接口文档
 
-OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 `OpenAI Audio API` 标准。支持多种 TTS 引擎，包括 `EdgeTTS`、`Kokoro`、`Kokorov1.1`(支持中英混合)、`ChatTTS`、`Bert-VITS2`、`OddGPT-SoVITS v2`、`MOSS-TTS-Nano`、`Audio8` 等。
+OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼容 `OpenAI Audio API` 标准。支持多种 TTS 引擎，包括 `EdgeTTS`、`Kokoro`、`Kokorov1.1`(支持中英混合)、`ZipVoice`(支持中英混合+音色克隆)、`ChatTTS`、`Bert-VITS2`、`OddGPT-SoVITS v2`、`MOSS-TTS-Nano`、`Audio8` 等。
 
 <font color=red><b>OddTTS支持私有协议接口，也支持标准的 OpenAI Audio API 接口。没有特殊需求，推荐使用 OpenAI Audio API 接口。</b></font>
 
@@ -513,6 +513,12 @@ curl -X POST http://localhost:8000/v1/audio/speech \
       "name": "ODDTTS_MOSS_NANO",
       "description": "MOSS-TTS-Nano 0.1B ONNX - OpenMOSS轻量级多语言TTS（纯CPU，近20种语言，48kHz）",
       "enable": true
+    },
+    {
+      "value": 11,
+      "name": "ODDTTS_ZIPVOICE",
+      "description": "ZipVoice-ONNX-INT8-ZH-EN - ZipVoice轻量级多语言TTS（纯CPU，支持中英混合）",
+      "enable": true
     }
   ],
   "current": {
@@ -576,7 +582,7 @@ curl http://localhost:8000/api/config/save \
   - 响应速度取决于服务器 GPU/CPU 性能。
   - 高并发场景下建议启用队列机制或使用异步客户端。
 
-- TTS 引擎选择:
+  - TTS 引擎选择:
 
   - EdgeTTS: 无需 GPU，适合快速测试和轻量级应用。
   - OddGPT-SoVITS: 需 8G 以上 GPU，音质最佳。
@@ -584,6 +590,7 @@ curl http://localhost:8000/api/config/save \
   - Bert-VITS2: 需 4G 以上 GPU，支持多语言。
   - Kokoro: 纯 CPU 运行，适合资源受限环境。
   - Kokoro V1.1: Kokoro 的 1.1 版本，支持中英混合。
+  - ZipVoice: 纯 CPU 运行，支持中英混合，基于 Flow Matching 架构，支持零样本音色克隆。
   - MOSS-TTS-Nano: 纯 CPU 运行，近 20 种语言，支持音色克隆。
   - Audio8 0.1B: 纯 CPU 运行，11 种语言，支持音色克隆。
   - Audio8 0.6B: 纯 CPU 运行，11 种语言，支持音色克隆。

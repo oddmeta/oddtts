@@ -4,7 +4,7 @@
 
 # OddTTS - 多引擎TTS语音合成API封装(兼容OpenAI TTS API)
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ChatTTS、Bert-VITS2、GptSovits v2、Moss-TTS-Nano、Audio8等，同时也支持OpenAI TTS API的调用。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ZipVoice、ChatTTS、Bert-VITS2、GptSovits v2、Moss-TTS-Nano、Audio8等，同时也支持OpenAI TTS API的调用。
 
 > **v2.0 亮点：音色克隆** — 上传一段 3-10 秒的参考音频即可克隆任意音色，通过 API 或 Web 界面像内置音色一样使用。
 
@@ -17,6 +17,7 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 >   - Bert-VITS2模型：2GB 左右（主干+BERT特征网络，每多一个语种需增加约1.3GB）。
 >   - GptSovits v2模型：2.5GB左右。
 >   - Moss-TTS-Nano 0.1B ONNX：约200MB（纯CPU，近20种语言）。
+>   - ZipVoice INT8：约186MB（纯CPU，支持中英混合，音色克隆）。
 >   - Audio8 0.1B ONNX INT8：约150MB（纯CPU，11种语言）。
 >   - Audio8 0.6B ONNX INT4：约400MB（纯CPU，11种语言）。
 > - 显存需求：
@@ -45,7 +46,7 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 
 ### 2. 为什么建议你选择OddTTS？
 
-- **多引擎支持**：集成了EdgeTTS、Kokoro、ChatTTS、Bert-VITS2、GptSovits、Moss-TTS-Nano、Audio8等多种TTS引擎
+- **多引擎支持**：集成了EdgeTTS、Kokoro、ZipVoice、ChatTTS、Bert-VITS2、GptSovits、Moss-TTS-Nano、Audio8等多种TTS引擎
 - **音色克隆**：上传参考音频即可克隆任意音色，通过 API 和 Web 界面直接使用（v2.0+）
 - **多种调用方式**：支持文件路径返回、Base64编码返回、流式响应等多种输出方式
 - **友好的Web界面**：提供可视化操作界面，含音色克隆管理面板
@@ -59,6 +60,7 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 依赖于你的网速 |
 | Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| ZipVoice | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 中等 |
 | Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
 | Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
 | Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 中等 |
@@ -71,6 +73,8 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 > - 本地版本：我自己电脑是一个十年前的老笔记本，用的是Kokoro-82M-v1.1-zh模型，纯CPU、且离线运行，运行速度也快。
 
 ## 二、快速开始
+
+Python环境要求：Python 3.12
 
 ### 1. 安装OddTTS
 
@@ -381,4 +385,4 @@ curl -X POST http://localhost:9001/v1/audio/speech \
 
 MIT 许可证 - 详见 LICENSE 文件。商用、个人用、随便用。
 
-也欢迎提交问题和改进建议！
+也欢迎提交问题和改进建议！也可联系我个人微信：`oddmeta`。

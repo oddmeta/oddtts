@@ -4,7 +4,7 @@
 
 # OddTTS - Multi-Engine TTS Speech Synthesis API Server (Compatible with OpenAI TTS API)
 
-OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ChatTTS, Bert-VITS2, GptSovits v2, Moss-TTS-Nano, Audio8, etc., and also supports OpenAI TTS API calls.
+OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ZipVoice, ChatTTS, Bert-VITS2, GptSovits v2, Moss-TTS-Nano, Audio8, etc., and also supports OpenAI TTS API calls.
 
 > **v2.0 Highlight: Voice Cloning** — Upload a 3-10 second reference audio to clone any voice, then use it like a built-in voice via API or Web UI.
 
@@ -17,6 +17,7 @@ OddTTS is a powerful multi-engine text-to-speech synthesis service that provides
 >   - Bert-VITS2 model: ~2GB (backbone + BERT feature network; each additional language requires ~1.3GB more).
 >   - GptSovits v2 model: ~2.5GB.
 >   - Moss-TTS-Nano 0.1B ONNX: ~200MB (pure CPU, ~20 languages).
+>   - ZipVoice INT8: ~186MB (pure CPU, Chinese + English, voice cloning).
 >   - Audio8 0.1B ONNX INT8: ~150MB (pure CPU, 11 languages).
 >   - Audio8 0.6B ONNX INT4: ~400MB (pure CPU, 11 languages).
 > - VRAM requirements:
@@ -45,7 +46,7 @@ Considering the wide range of uses for TTS functionality, I separated it out and
 
 ### 2. Why Choose OddTTS?
 
-- **Multi-Engine Support**: Integrates EdgeTTS, Kokoro, ChatTTS, Bert-VITS2, GptSovits, Moss-TTS-Nano, Audio8, and other TTS engines.
+- **Multi-Engine Support**: Integrates EdgeTTS, Kokoro, ZipVoice, ChatTTS, Bert-VITS2, GptSovits, Moss-TTS-Nano, Audio8, and other TTS engines.
 - **Voice Cloning**: Upload a reference audio to clone any voice, usable via API and Web UI (v2.0+).
 - **Multiple Calling Methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods.
 - **User-Friendly Web UI**: Provides a visual operation interface with voice cloning management panel.
@@ -59,6 +60,7 @@ Considering the wide range of uses for TTS functionality, I separated it out and
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Depends on your network speed |
 | Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| ZipVoice | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Medium |
 | Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
 | Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
 | Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Medium |
@@ -71,6 +73,8 @@ Considering the wide range of uses for TTS functionality, I separated it out and
 > - Local version: My own computer is a ten-year-old laptop, using the Kokoro-82M-v1.1-zh model, running purely on CPU and offline, with fast execution speed.
 
 ## II. Quick Start
+
+**Note**: Before using OddTTS, please make sure you have installed Python 3.12 or later and have activated a virtual environment.
 
 ### 1. Install OddTTS
 
@@ -380,4 +384,4 @@ After the service starts, you can open the Web UI by visiting `http://localhost:
 
 MIT License - see LICENSE file for details. Commercial use, personal use, feel free to use it however you like.
 
-Questions and improvement suggestions are also welcome!
+Questions and improvement suggestions are also welcome! Please contact me via email: <hi@oddmeta.com>
