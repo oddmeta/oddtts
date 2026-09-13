@@ -236,15 +236,15 @@ class ODDTTS_TYPE(Enum):
         keys = {
             self.UNKNOWN: '',
             self.ODDTTS_GPTSOVITS: 'gptsovits',
-            self.ODDTTS_EDGETTS: '',
-            self.ODDTTS_CHATTTS: '',
-            self.ODDTTS_BERTVITS2: '',
-            self.ODDTTS_BERTVITS2_V2: '',
+            self.ODDTTS_EDGETTS: 'edgetts',
+            self.ODDTTS_CHATTTS: 'chattts',
+            self.ODDTTS_BERTVITS2: 'bertvits2',
+            self.ODDTTS_BERTVITS2_V2: 'bertvits2_v2',
             self.ODDTTS_KOKORO: 'kokoro',
             self.ODDTTS_KOKORO_V1_1: 'kokoro_v11',
-            self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'audio8_0_1b',
-            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'audio8_0_6b',
-            self.ODDTTS_MOSS_NANO: 'moss_nano',
+            self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'audio8_0_1b_onnx_int8',
+            self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'audio8_0_6b_onnx_int4',
+            self.ODDTTS_MOSS_NANO: 'moss_tts_nano_100m_onnx',
             self.ODDTTS_ZIPVOICE: 'zipvoice',
         }
         return keys[self]
