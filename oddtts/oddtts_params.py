@@ -245,7 +245,7 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'audio8_0_1b_onnx_int8',
             self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'audio8_0_6b_onnx_int4',
             self.ODDTTS_MOSS_NANO: 'moss_tts_nano_100m_onnx',
-            self.ODDTTS_ZIPVOICE: 'zipvoice',
+            self.ODDTTS_ZIPVOICE: 'zipvoice-onnx-int8-zh-en',
         }
         return keys[self]
 
@@ -263,7 +263,7 @@ class ODDTTS_TYPE(Enum):
             self.ODDTTS_AUDIO8_0_1B_ONNX_INT8: 'Audio8 0.1B ONNX INT8 - Audio8 0.1B ONNX INT8 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
             self.ODDTTS_AUDIO8_0_6B_ONNX_INT4: 'Audio8 0.6B ONNX INT4 - Audio8 0.6B ONNX INT4 语音合成（纯CPU，Cantonese,Chinese,Dutch,English,French,German,Italian,Japanese,Korean,Polish,Spanish，44.1kHz）',
             self.ODDTTS_MOSS_NANO: 'MOSS-TTS-Nano 0.1B ONNX - OpenMOSS 轻量级多语言TTS（纯CPU，近20种语言，48kHz）',
-            self.ODDTTS_ZIPVOICE: 'ZipVoice - 基于 PyTorch 的零样本音色克隆TTS（需GPU，支持中英混合）'
+            self.ODDTTS_ZIPVOICE: 'ZipVoice-ONNX-INT8-ZH-EN - ZipVoice 轻量级多语言TTS（纯CPU，支持中英混合）'
         }
         return descriptions[self]
 

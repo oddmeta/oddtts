@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "2.0.13"
+version = "2.1.15"
 description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
 readme = "README.md"
 
@@ -33,6 +33,7 @@ dependencies = [
     "PyYAML",
     "transformers>=4.57.0,<5",
     "onnxruntime",
+    "sherpa-onnx>=1.13.0",
     "modelscope>=1.20.0",
     "huggingface-hub>=0.20.0",
     # MOSS-TTS-Nano dependencies
@@ -43,6 +44,12 @@ dependencies = [
     "uvicorn>=0.29.0",
     # Audio8 dependencies
     "scipy==1.17.1",
+]
+
+[project.optional-dependencies]
+zipvoice = [
+    "sherpa-onnx>=1.13.0",
+    "soundfile",
 ]
 
 [project.urls]
