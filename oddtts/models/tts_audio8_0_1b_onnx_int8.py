@@ -11,6 +11,7 @@ import numpy as np
 
 from oddtts.utils.model_utils import ensure_model, ensure_git_repo, resolve_model_dir
 from oddtts.oddtts_params import ODDTTS_TYPE, new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.oddtts_config import oddtts_cfg
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
 
@@ -181,8 +182,9 @@ class Audio8_0_1b_OnnxInt8_API:
             self.runtime = ArkTtsRuntime(
                 model_dir=ONNX_MODEL_DIR,
                 voices_dir=voices_dir,
+                threads=oddtts_cfg["concurrent_thread"],
             )
-            logger.info(f"[Audio8] Runtime 初始化成功，采样率: {self.runtime.manifest['sample_rate']} Hz")
+            logger.info(f"[Audio8] Runtime 初始化成功，采样率: {self.runtime.manifest['sample_rate']} Hz, threads: {oddtts_cfg['concurrent_thread']}")
         except Exception as e:
             pathlib.Path.read_text = _original_read_text
             raise RuntimeError(f"[Audio8] Runtime 初始化失败: {e}")

@@ -15,6 +15,7 @@ import numpy as np
 
 from oddtts.utils.model_utils import ensure_model, resolve_model_dir
 from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.oddtts_config import oddtts_cfg
 from oddtts.oddtts_log import setup_logger
 
 logger = setup_logger(__name__)
@@ -240,6 +241,8 @@ class ZipVoiceAPI:
         # Lazy import sherpa-onnx
         import sherpa_onnx
 
+        num_threads = oddtts_cfg["concurrent_thread"]
+
         config = sherpa_onnx.OfflineTtsConfig(
             model=sherpa_onnx.OfflineTtsModelConfig(
                 zipvoice=sherpa_onnx.OfflineTtsZipvoiceModelConfig(
@@ -250,7 +253,7 @@ class ZipVoiceAPI:
                     lexicon=os.path.join(model_dir, LEXICON_NAME),
                     vocoder=vocoder_path,
                 ),
-                num_threads=int(os.environ.get("ZIPVOICE_NUM_THREADS", "2")),
+                num_threads=num_threads,
             ),
         )
 
@@ -259,8 +262,8 @@ class ZipVoiceAPI:
         # Cache built-in voices
         self._builtin_voices = _load_builtin_voices(model_dir)
 
-        logger.info("[ZipVoice] sherpa-onnx initialized (model: %s, vocoder: %s, sr: %d, %d voices)",
-                     model_dir, vocoder_path, self.tts.sample_rate, len(self._builtin_voices or []))
+        logger.info("[ZipVoice] sherpa-onnx initialized (model: %s, vocoder: %s, sr: %d, %d voices, %d cpu threads)",
+                     model_dir, vocoder_path, self.tts.sample_rate, len(self._builtin_voices or []), num_threads)
 
     # ── Public API ──────────────────────────────────────────────────────
 

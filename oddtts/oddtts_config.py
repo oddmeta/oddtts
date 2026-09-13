@@ -1,4 +1,5 @@
 from oddtts.oddtts_params import ODDTTS_TYPE
+from oddtts.utils.config_loader import load_config
 
 ## Flask server binding IP & port
 HOST = "127.0.0.1"
@@ -7,15 +8,16 @@ PORT = 9001
 ## working mode - Debug mode: True/False， Release mode: False/True
 Debug = False
 
-oddtts_cfg = {
+## Default values — used to generate ~/.config/oddtts/config.json on first run
+oddtts_cfg_defaults = {
     ## load model and allocate memory on startup
     "preload_model": True,
     ## enable gpu
     "enable_gpu": False,
     ## disable stream mode TTS
     "disable_stream": False,
-    ## concurrent threads, 0 auto detect CPU cores
-    "concurrent_thread": 0,
+    ## concurrent threads for TTS
+    "concurrent_thread": 8,
     ## tts type
     "tts_type": ODDTTS_TYPE.ODDTTS_ZIPVOICE,
 
@@ -28,6 +30,13 @@ oddtts_cfg = {
     "ssl_cert_path": "scripts/cert.pem",
     "ssl_key_path": "scripts/key.pem",
 }
+
+## Load from ~/.config/oddtts/config.json, merge with defaults
+oddtts_cfg = load_config(oddtts_cfg_defaults)
+
+## Resolve concurrent_thread: 0 → 4
+if oddtts_cfg.get("concurrent_thread", 0) <= 0:
+    oddtts_cfg["concurrent_thread"] = 4
 
 ## db config
 db_cfg = {

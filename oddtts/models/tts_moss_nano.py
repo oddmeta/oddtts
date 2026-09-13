@@ -8,6 +8,7 @@ import numpy as np
 
 from oddtts.utils.model_utils import ensure_model, resolve_model_dir
 from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.oddtts_config import oddtts_cfg
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
 
@@ -107,14 +108,14 @@ class MossNanoAPI:
         try:
             from onnx_tts_runtime import OnnxTtsRuntime
 
-            cpu_threads = min(os.cpu_count() or 4, 8)
+            num_threads = oddtts_cfg["concurrent_thread"]
             self.runtime = OnnxTtsRuntime(
                 model_dir=MOSS_MODEL_DIR,
-                thread_count=cpu_threads,
+                thread_count=num_threads,
                 execution_provider="cpu",
             )
             logger.info(
-                f"[MossNano] Runtime 初始化成功，线程数: {cpu_threads}, 采样率: {SAMPLE_RATE} Hz"
+                f"[MossNano] Runtime 初始化成功，线程数: {num_threads}, 采样率: {SAMPLE_RATE} Hz"
             )
         except ImportError as e:
             raise RuntimeError(
