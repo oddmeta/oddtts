@@ -7,7 +7,7 @@ from kokoro import KPipeline, KModel
 import numpy as np
 import torch
 
-from oddtts.utils.model_utils import download_model, resolve_model_dir
+from oddtts.utils.model_utils import ensure_model, resolve_model_dir
 from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 
@@ -32,14 +32,12 @@ class KokoroAPIV11():
         self.local_model_name = "kokoro-v1_1-zh.pth"
         self._init_local_model_dir()
         self.default_text = "关注我的公众号：奥德元，一起学习 AI，一起追赶时代。Good good study, day day up."
-        # 中文音色张量
+        # 中文管道
         self.pipeline = None
         self.voice = "zm_009"
-        self.voice_tensor_cn = None
-        # 中英混合-英文管道
+        # 英文管道
         self.pipeline_en = None
         self.voice_en = "af_maple"
-        self.voice_tensor_en = None
 
     def _init_local_model_dir(self):
         import os
@@ -109,23 +107,20 @@ class KokoroAPIV11():
             start_time = time.time()
             
             import os
+            
+            # 确保模型已下载到 local_dir
+            ensure_model(
+                model_dir=local_dir,
+                repo_ids=repo_id,
+                marker_file="config.json",
+                tag="[Kokoro v1.1]",
+            )
+            
             local_config_path = os.path.join(local_dir, "config.json")
             local_model_path = os.path.join(local_dir, self.local_model_name)
             
-            if os.path.exists(local_config_path) and os.path.exists(local_model_path):
-                logger.info(f"[响应] 本地 ckpts 目录已存在模型文件，跳过 HuggingFace 下载")
-            else:
-                logger.info(f"[响应] 本地目录不存在模型文件，使用通用接口获取模型...")
-                try:
-                    model_path = download_model(repo_id=repo_id)
-                    logger.info(f"[响应] 模型路径: {model_path}")
-                    local_config_path = os.path.join(model_path, "config.json")
-                    local_model_path = os.path.join(model_path, self.local_model_name)
-                    logger.info(f"[响应] config路径: {local_config_path}")
-                    logger.info(f"[响应] model路径: {local_model_path}")
-                except Exception as e:
-                    logger.error(f"[响应] 获取模型时出错: {e}")
-                    raise
+            if not (os.path.exists(local_config_path) and os.path.exists(local_model_path)):
+                raise RuntimeError(f"[Kokoro v1.1] 模型文件不完整: 缺少 config.json 或 {self.local_model_name}")
 
             with open(local_config_path, 'r', encoding='utf-8') as r:
                 config = json.load(r)
@@ -139,12 +134,6 @@ class KokoroAPIV11():
             self.model.to(device).eval()
 
     async def _load_pipeline_en(self) -> None:
-        if self.voice_tensor_en is None:
-            logger.info(f"[响应] 加载管道: 开始加载英文音色...")
-            start_time = time.time()
-            self.voice_tensor_en = torch.load(f'{self.local_model_dir}/voices/{self.voice_en}.pt', weights_only=True)
-            logger.info(f"[响应] 加载英文音色完成 - 耗时: {time.time() - start_time:.3f}秒")
-
         if self.pipeline_en is None:
             logger.info(f"[响应] 加载管道: 开始创建英文管道...")
             start_time = time.time()
@@ -158,11 +147,11 @@ class KokoroAPIV11():
             return 'kˈOkəɹO'
 
         # 默认使用英文管道和英文音色来处理英文文本
-        if self.pipeline_en is None or self.voice_tensor_en is None:
-            logger.warning(f"英文管道或英文音色未加载，无法处理英文文本: {text}")
+        if self.pipeline_en is None:
+            logger.warning(f"英文管道未加载，无法处理英文文本: {text}")
             return text  # 返回原始文本，可能会被中文管道处理成不理想的发音
         
-        return next(self.pipeline_en(text, voice=self.voice_tensor_en)).phonemes
+        return next(self.pipeline_en(text, voice=self.voice_en)).phonemes
 
 
     async def _load_pipeline(self, tts_params: TTSParams) -> None:
@@ -188,12 +177,7 @@ class KokoroAPIV11():
         # load model
         await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir)
 
-        # 加载一个中文音色和一个英文音色
-        if self.voice != tts_params.voice:
-            logger.info(f"[响应] 开始加载中文音色：{tts_params.voice}...")
-            self.voice_tensor_cn = torch.load(f'{self.local_model_dir}/voices/{tts_params.voice}.pt', weights_only=True)
-            logger.info(f"[响应] 加载中文音色：{tts_params.voice}完成 - 耗时: {time.time() - start_time:.3f}秒")
-
+        self.voice = tts_params.voice
 
         # load pipeline_en
         await self._load_pipeline_en()
@@ -205,12 +189,10 @@ class KokoroAPIV11():
         logger.info(f"开始生成语音...")
         start_time_pipeline = time.time()
         # 调用管道生成语音
-        # 注意：这里假设管道的参数是 text, voice, speed, split_pattern
-        # generator = self.pipeline(text, voice=tts_params.voice, speed=rate_, split_pattern=r'\n+')
         if self.pipeline is None:
             logger.error("管道未加载，无法生成语音")
             raise RuntimeError("Pipeline not loaded")
-        generator = self.pipeline(text, voice=self.voice_tensor_cn, speed=rate_, split_pattern=r'\n+')
+        generator = self.pipeline(text, voice=self.voice, speed=rate_, split_pattern=r'\n+')
 
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
         result = next(generator)

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
-from oddtts.utils.model_utils import download_model, resolve_model_dir
-from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.utils.model_utils import ensure_model, ensure_git_repo, resolve_model_dir
+from oddtts.oddtts_params import ODDTTS_TYPE, new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
 
@@ -19,6 +19,7 @@ logger = setup_logger(__name__)
 ONNX_REPO_ID = os.environ.get("AUDIO8_ONNX_REPO_ID", "Audio8/audio8-TTS-0.1B-ONNX-INT8")
 OFFICIAL_REPO_DIR = "Audio8_TTS"
 SAMPLE_RATE = 44100
+ONNX_MODEL_DIR = resolve_model_dir(ODDTTS_TYPE.ODDTTS_AUDIO8_0_1B_ONNX_INT8.model_key, env_var="AUDIO8_MODEL_DIR")
 
 ENGINE_NAME = "audio8_0_1b_onnx_int8"
 
@@ -80,10 +81,6 @@ class Audio8_0_1b_OnnxInt8_API:
 
         return list(Audio8_voices.values())
 
-    def _model_dir(self) -> str:
-        from oddtts.oddtts_params import ODDTTS_TYPE
-        return resolve_model_dir(ODDTTS_TYPE.ODDTTS_AUDIO8_0_1B_ONNX_INT8.model_key, env_var="AUDIO8_MODEL_DIR")
-
     def _repo_dir(self) -> str:
         # 1. 项目根目录（开发模式）
         repo_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", OFFICIAL_REPO_DIR))
@@ -107,35 +104,23 @@ class Audio8_0_1b_OnnxInt8_API:
         return os.path.join(self._runtime_dir(), "voices")
 
     def _ensure_model(self):
-        model_dir = self._model_dir()
-        if os.path.isdir(model_dir) and os.path.isfile(os.path.join(model_dir, "slow_ar_int8.onnx")):
-            logger.info(f"[Audio8] 模型已存在: {model_dir}")
-            return
-        logger.info(f"[Audio8] 开始下载 ONNX INT8 模型: {ONNX_REPO_ID}")
-        for src in ["modelscope", "huggingface"]:
-            try:
-                download_model(repo_id=ONNX_REPO_ID, local_dir=model_dir, source=src)
-                logger.info(f"[Audio8] 模型下载成功: {model_dir}")
-                return
-            except Exception as e:
-                logger.warning(f"[Audio8] [{src}] 下载失败: {e}")
-        raise RuntimeError(f"[Audio8] 模型下载失败，请手动下载 {ONNX_REPO_ID} 到 {model_dir}")
+        model_dir = ONNX_MODEL_DIR
+        ensure_model(
+            model_dir=model_dir,
+            repo_ids=ONNX_REPO_ID,
+            marker_file="slow_ar_int8.onnx",
+            source_priority=["modelscope", "huggingface"],
+            tag="[Audio8]",
+            manual_hint=f"请手动下载 {ONNX_REPO_ID} 到 {model_dir}",
+        )
 
     def _ensure_runtime(self):
         repo_dir = self._repo_dir()
-        if os.path.isdir(repo_dir) and os.path.isdir(self._runtime_dir()):
-            logger.info(f"[Audio8] Runtime 已存在: {self._runtime_dir()}")
-            return
-        logger.info("[Audio8] 克隆官方仓库...")
-        try:
-            subprocess.check_call(
-                ["git", "clone", "--depth", "1", "https://github.com/Audio8-AI/Audio8_TTS.git", repo_dir],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            logger.info("[Audio8] 仓库克隆成功")
-        except Exception as e:
-            raise RuntimeError(f"[Audio8] 仓库克隆失败: {e}")
+        ensure_git_repo(
+            repo_dir=repo_dir,
+            repo_url="https://github.com/Audio8-AI/Audio8_TTS.git",
+            tag="[Audio8]",
+        )
 
     def _init_runtime(self):
         if self.runtime is not None:
@@ -171,7 +156,7 @@ class Audio8_0_1b_OnnxInt8_API:
             default_voice_dir = os.path.join(voices_dir, "default_voice")
             os.makedirs(default_voice_dir, exist_ok=True)
 
-            ref_codes_src = os.path.join(self._model_dir(), "reference_codes.npy")
+            ref_codes_src = os.path.join(ONNX_MODEL_DIR, "reference_codes.npy")
             ref_codes_dst = os.path.join(default_voice_dir, "codes.npy")
             meta_path = os.path.join(default_voice_dir, "meta.json")
 
@@ -181,7 +166,7 @@ class Audio8_0_1b_OnnxInt8_API:
 
             if not os.path.exists(meta_path):
                 ref_text = "Reference audio for voice cloning."
-                manifest_path = os.path.join(self._model_dir(), "runtime_manifest.json")
+                manifest_path = os.path.join(ONNX_MODEL_DIR, "runtime_manifest.json")
                 if os.path.exists(manifest_path):
                     try:
                         with open(manifest_path, "r", encoding="utf-8") as f:
@@ -194,7 +179,7 @@ class Audio8_0_1b_OnnxInt8_API:
                 logger.info("[Audio8] 已创建默认音色 meta.json")
 
             self.runtime = ArkTtsRuntime(
-                model_dir=self._model_dir(),
+                model_dir=ONNX_MODEL_DIR,
                 voices_dir=voices_dir,
             )
             logger.info(f"[Audio8] Runtime 初始化成功，采样率: {self.runtime.manifest['sample_rate']} Hz")
@@ -219,7 +204,7 @@ class Audio8_0_1b_OnnxInt8_API:
 
         try:
             reg = VoiceRegistration(
-                registration_dir=Path(self._model_dir()) / "registration",
+                registration_dir=Path(ONNX_MODEL_DIR) / "registration",
                 voices_root=Path(self._voices_dir()),
                 model_fingerprint=str(self.runtime.manifest.get("model_fingerprint", "")),
             )

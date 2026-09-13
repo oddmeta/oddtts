@@ -3,6 +3,8 @@
 支持从 HuggingFace Hub 和 ModelScope 下载模型
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import subprocess
@@ -248,3 +250,117 @@ def check_model_exists(repo_id: str, source: str = "huggingface") -> bool:
     except Exception as e:
         logger.debug(f"[{source}] 模型 {repo_id} 不存在或检查失败: {e}")
         return False
+
+
+# ------------------------------------------------------------------ #
+# 统一模型下载接口
+# ------------------------------------------------------------------ #
+
+def ensure_model(
+    model_dir: str,
+    repo_ids: str | list[str],
+    marker_file: str | None = None,
+    source_priority: list[str] | None = None,
+    tag: str = "",
+    manual_hint: str = "",
+) -> str:
+    """统一的模型下载接口：先检查本地是否存在，不存在则尝试下载。
+
+    封装了「本地存在性检查 → 多 repo / 多源回退 → 错误提示」的完整流程，
+    各 TTS 引擎只需调用此函数即可完成模型下载。
+
+    Args:
+        model_dir: 模型本地目录绝对路径
+        repo_ids: 模型仓库 ID，可以是单个字符串或列表。
+            列表时按顺序依次尝试（如先 ModelScope 再 HuggingFace）。
+        marker_file: 标记文件名（相对于 model_dir），存在则认为模型已下载完毕。
+            为 None 时检查 model_dir 是否存在且非空。
+        source_priority: 下载源优先级，如 ``["modelscope", "huggingface"]``。
+            为 None 时使用 ``DEFAULT_SOURCE_PRIORITY``。
+        tag: 日志前缀标签，如 ``"[Audio8]"``。
+        manual_hint: 下载失败时附在错误信息里的手动下载提示。
+
+    Returns:
+        模型本地目录路径（与 model_dir 一致）
+
+    Raises:
+        RuntimeError: 所有下载尝试均失败时抛出。
+    """
+    os.makedirs(model_dir, exist_ok=True)
+
+    # ---------- 1. 检查本地是否已存在 ----------
+    if marker_file:
+        marker_path = os.path.join(model_dir, marker_file)
+        if os.path.isfile(marker_path):
+            logger.info(f"{tag} 模型已存在: {model_dir}")
+            return model_dir
+    else:
+        if os.path.isdir(model_dir) and any(os.scandir(model_dir)):
+            logger.info(f"{tag} 模型已存在: {model_dir}")
+            return model_dir
+
+    # ---------- 2. 规范化 repo_ids ----------
+    if isinstance(repo_ids, str):
+        repo_ids = [repo_ids]
+    if not repo_ids:
+        raise ValueError(f"{tag} repo_ids 不能为空")
+
+    # ---------- 3. 规范化 source_priority ----------
+    if source_priority is None:
+        source_priority = DEFAULT_SOURCE_PRIORITY.copy()
+
+    # ---------- 4. 逐 repo 逐源尝试下载 ----------
+    last_error: Exception | None = None
+    for repo_id in repo_ids:
+        try:
+            result = download_model(
+                repo_id=repo_id,
+                local_dir=model_dir,
+                source="auto" if len(source_priority) > 1 else source_priority[0],
+            )
+            logger.info(f"{tag} 模型下载成功: {repo_id} → {result}")
+            return result
+        except Exception as e:
+            last_error = e
+            logger.warning(f"{tag} [{repo_id}] 下载失败: {e}")
+            continue
+
+    # ---------- 5. 全部失败 ----------
+    hint = f"\n{manual_hint}" if manual_hint else ""
+    raise RuntimeError(
+        f"{tag} 模型下载失败，已尝试仓库: {repo_id}。最后错误: {last_error}{hint}"
+    )
+
+
+def ensure_git_repo(
+    repo_dir: str,
+    repo_url: str,
+    tag: str = "",
+) -> str:
+    """确保 Git 仓库已克隆到本地（浅克隆）。
+
+    用于 Audio8 / ZipVoice 等需要运行时仓库的引擎。
+
+    Args:
+        repo_dir: 本地目标目录
+        repo_url: Git 仓库 URL
+        tag: 日志前缀标签
+
+    Returns:
+        repo_dir 路径
+    """
+    if os.path.isdir(repo_dir):
+        logger.info(f"{tag} 仓库已存在: {repo_dir}")
+        return repo_dir
+
+    logger.info(f"{tag} 克隆仓库: {repo_url}")
+    try:
+        subprocess.check_call(
+            ["git", "clone", "--depth", "1", repo_url, repo_dir],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"{tag} 仓库克隆成功: {repo_dir}")
+        return repo_dir
+    except Exception as e:
+        raise RuntimeError(f"{tag} 仓库克隆失败: {e}") from e

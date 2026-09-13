@@ -6,8 +6,8 @@ import time
 
 import numpy as np
 
-from oddtts.utils.model_utils import download_model, resolve_model_dir
-from oddtts.oddtts_params import TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.utils.model_utils import ensure_model, resolve_model_dir
+from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams, convert_audio_format, convert_ndarray_to_format
 from oddtts.oddtts_log import setup_logger
 from oddtts.voice_clone import get_voice_clone_manager
 
@@ -15,6 +15,8 @@ logger = setup_logger(__name__)
 
 # 引擎标识（用于 VoiceCloneManager）
 ENGINE_NAME = "moss_nano"
+
+MOSS_MODEL_DIR = resolve_model_dir(ODDTTS_TYPE.ODDTTS_MOSS_NANO.model_key)
 
 # 模型下载配置（优先 ModelScope，回退 HuggingFace）
 TTS_MODELSCOPE_ID = "openmoss/MOSS-TTS-Nano-100M-ONNX"
@@ -57,48 +59,28 @@ class MossNanoAPI:
         # 避免每次合成都重新跑 codec_encode ONNX
         self._prompt_codes_cache: dict[str, list[list[int]]] = {}
 
-    def _model_dir(self) -> str:
-        from oddtts.oddtts_params import ODDTTS_TYPE
-        return resolve_model_dir(ODDTTS_TYPE.ODDTTS_MOSS_NANO.model_key)
-
     def _ensure_models(self) -> None:
         """确保 ONNX 模型已下载（优先 ModelScope）"""
-        model_dir = self._model_dir()
-        os.makedirs(model_dir, exist_ok=True)
+        model_dir = MOSS_MODEL_DIR
 
+        # TTS 模型
         tts_dir = os.path.join(model_dir, "MOSS-TTS-Nano-100M-ONNX")
+        ensure_model(
+            model_dir=tts_dir,
+            repo_ids=[TTS_MODELSCOPE_ID, TTS_HF_ID],
+            marker_file="browser_poc_manifest.json",
+            tag="[MossNano TTS]",
+            manual_hint="请检查网络或手动下载 MOSS-TTS-Nano-100M-ONNX",
+        )
+
+        # Codec 模型
         codec_dir = os.path.join(model_dir, "MOSS-Audio-Tokenizer-Nano-ONNX")
-
-        # 检查并下载 TTS 模型
-        manifest_path = os.path.join(tts_dir, "browser_poc_manifest.json")
-        if os.path.isfile(manifest_path):
-            logger.info(f"[MossNano] TTS 模型已存在: {tts_dir}")
-        else:
-            logger.info("[MossNano] 开始下载 TTS ONNX 模型...")
-            for repo_id in [TTS_MODELSCOPE_ID, TTS_HF_ID]:
-                try:
-                    download_model(repo_id=repo_id, local_dir=tts_dir, source="auto")
-                    logger.info(f"[MossNano] TTS 模型下载成功: {repo_id}")
-                    break
-                except Exception as e:
-                    logger.warning(f"[MossNano] [{repo_id}] 下载失败: {e}")
-            else:
-                raise RuntimeError("[MossNano] TTS ONNX 模型下载失败，请检查网络或手动下载")
-
-        # 检查并下载 Codec 模型
-        if os.path.isdir(codec_dir) and any(os.scandir(codec_dir)):
-            logger.info(f"[MossNano] Codec 模型已存在: {codec_dir}")
-        else:
-            logger.info("[MossNano] 开始下载 Codec ONNX 模型...")
-            for repo_id in [CODEC_MODELSCOPE_ID, CODEC_HF_ID]:
-                try:
-                    download_model(repo_id=repo_id, local_dir=codec_dir, source="auto")
-                    logger.info(f"[MossNano] Codec 模型下载成功: {repo_id}")
-                    break
-                except Exception as e:
-                    logger.warning(f"[MossNano] [{repo_id}] 下载失败: {e}")
-            else:
-                raise RuntimeError("[MossNano] Codec ONNX 模型下载失败，请检查网络或手动下载")
+        ensure_model(
+            model_dir=codec_dir,
+            repo_ids=[CODEC_MODELSCOPE_ID, CODEC_HF_ID],
+            tag="[MossNano Codec]",
+            manual_hint="请检查网络或手动下载 MOSS-Audio-Tokenizer-Nano-ONNX",
+        )
 
     def _init_runtime(self) -> None:
         """初始化 OnnxTtsRuntime（自动确保模型已下载）"""
@@ -127,7 +109,7 @@ class MossNanoAPI:
 
             cpu_threads = min(os.cpu_count() or 4, 8)
             self.runtime = OnnxTtsRuntime(
-                model_dir=self._model_dir(),
+                model_dir=MOSS_MODEL_DIR,
                 thread_count=cpu_threads,
                 execution_provider="cpu",
             )
