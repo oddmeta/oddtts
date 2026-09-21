@@ -19,7 +19,7 @@ oddtts_cfg_defaults = {
     ## concurrent threads for TTS
     "concurrent_thread": 8,
     ## tts type
-    "tts_type": ODDTTS_TYPE.ODDTTS_ZIPVOICE,
+    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO_V1_1,
 
     ## 模型根目录（所有引擎模型存放于此目录下，按 engine.model_key 子目录组织）
     "model_base_dir": "models",

@@ -300,7 +300,8 @@ def play_audio():
         if os.path.exists(file_path):
             elapsed_time = time.time() - start_time
             logger.info(f"[响应] 播放音频成功 - 文件: {file_path}, 耗时: {elapsed_time:.3f}秒")
-            return send_file(file_path, mimetype='audio/mpeg')
+            # 让 Flask 自动根据文件扩展名检测 MIME 类型
+            return send_file(file_path)
     
     elapsed_time = time.time() - start_time
     logger.warning(f"[响应] 文件未找到 - 路径: {file_path}, 耗时: {elapsed_time:.3f}秒")
@@ -313,6 +314,8 @@ def download_audio():
     logger.info("[请求] 下载音频接口")
     
     import urllib.parse
+    from pathlib import Path
+    
     file_path = request.args.get('path', '')
     
     logger.info(f"[参数] 文件路径: {file_path}")
@@ -321,8 +324,20 @@ def download_audio():
         file_path = urllib.parse.unquote(file_path)
         if os.path.exists(file_path):
             elapsed_time = time.time() - start_time
-            logger.info(f"[响应] 下载音频成功 - 文件: {file_path}, 耗时: {elapsed_time:.3f}秒")
-            return send_file(file_path, as_attachment=True, download_name='oddtts_audio.mp3', mimetype='audio/mpeg')
+            # 根据文件扩展名动态设置 MIME 类型和下载名称
+            file_ext = Path(file_path).suffix.lower()
+            mime_types = {
+                '.wav': 'audio/wav',
+                '.mp3': 'audio/mpeg',
+                '.ogg': 'audio/ogg',
+                '.flac': 'audio/flac',
+                '.aac': 'audio/aac',
+            }
+            mimetype = mime_types.get(file_ext, 'audio/mpeg')
+            download_name = f'oddtts_audio{file_ext}'
+            
+            logger.info(f"[响应] 下载音频成功 - 文件: {file_path}, 类型: {mimetype}, 耗时: {elapsed_time:.3f}秒")
+            return send_file(file_path, as_attachment=True, download_name=download_name, mimetype=mimetype)
     
     elapsed_time = time.time() - start_time
     logger.warning(f"[响应] 文件未找到 - 路径: {file_path}, 耗时: {elapsed_time:.3f}秒")
@@ -512,27 +527,83 @@ def api_save_config():
             content = f.read()
         
         import re
-        pattern = r'"tts_type":\s*ODDTTS_TYPE\.\w+'
+        # 更健壮的正则表达式，处理各种空格和换行情况
+        pattern = r'"tts_type"\s*:\s*ODDTTS_TYPE\.\w+'
         replacement = f'"tts_type": ODDTTS_TYPE.{tts_type.name}'
         
         new_content = re.sub(pattern, replacement, content)
         
         if new_content == content:
-            if config.oddtts_cfg.get('tts_type') == tts_type:
+            # 配置未变化，检查原因
+            current_type = config.oddtts_cfg.get('tts_type')
+            
+            # 确保 current_type 是枚举类型
+            if isinstance(current_type, str):
+                # 如果是字符串，尝试转换为枚举
+                try:
+                    from oddtts.oddtts_params import ODDTTS_TYPE as ODDTTS_TYPE_Class
+                    current_type = ODDTTS_TYPE_Class[current_type]
+                except (KeyError, ImportError) as e:
+                    logger.warning(f"[配置] 无法将字符串 '{current_type}' 转换为枚举: {e}")
+            
+            # 调试日志
+            current_type_repr = repr(current_type)
+            current_type_value = current_type.value if hasattr(current_type, 'value') else 'N/A'
+            logger.debug(f"[配置] 正则替换未生效")
+            logger.debug(f"[配置] 当前类型: {current_type_repr} (value={current_type_value})")
+            logger.debug(f"[配置] 目标类型: {tts_type} (value={tts_type.value})")
+            
+            if current_type == tts_type:
                 return jsonify({
                     'success': True,
                     'message': '配置已相同，无需更新'
                 })
             else:
-                return jsonify({'success': False, 'error': '未找到配置项'}), 400
+                # 检测到配置文件不同步，尝试自动修复
+                logger.warning(f"[配置] 检测到配置不同步：oddtts_config.py={tts_type.name}, config.json={current_type}")
+                logger.info(f"[配置] 尝试自动同步 config.json 到 {tts_type.name}")
+                
+                try:
+                    from oddtts.utils.config_loader import save_config
+                    # 更新内存中的配置
+                    config.oddtts_cfg['tts_type'] = tts_type
+                    # 持久化到 config.json
+                    save_config(config.oddtts_cfg)
+                    logger.info(f"[配置] 已自动同步 config.json 到 {tts_type.name}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'配置不同步已自动修复，已更新为 {tts_type.name}。请刷新页面使配置生效。'
+                    })
+                except Exception as e:
+                    error_msg = (
+                        f'保存失败：配置文件不同步且自动修复失败。\n'
+                        f'oddtts_config.py 配置: {tts_type.name} (value={tts_type.value})\n'
+                        f'config.json 配置: {current_type_repr} (value={current_type_value})\n'
+                        f'\n错误信息：{str(e)}\n'
+                        f'\n建议：手动同步两个配置文件中的 tts_type 值。'
+                    )
+                    logger.error(f"[配置] {error_msg}")
+                    return jsonify({
+                        'success': False, 
+                        'error': error_msg
+                    }), 500
         
         with open(config_file_path, 'w', encoding='utf-8') as f:
             f.write(new_content)
         
         logger.info(f"[配置] TTS类型已更新: {tts_type.name}")
         
-        # 更新内存中的配置
-        config.oddtts_cfg['tts_type'] = tts_type
+        # 同时更新 config.json，确保两个配置文件同步
+        try:
+            from oddtts.utils.config_loader import save_config
+            # 更新内存中的配置
+            config.oddtts_cfg['tts_type'] = tts_type
+            # 持久化到 config.json
+            save_config(config.oddtts_cfg)
+            logger.info(f"[配置] 已同步更新 config.json")
+        except Exception as e:
+            logger.warning(f"[配置] 更新 config.json 失败: {e}")
         
         # 重新初始化 TTS 驱动
         single_tts_driver = None
@@ -751,7 +822,8 @@ def api_play_cloned_voice_audio(engine, voice_id):
 
         elapsed_time = time.time() - start_time
         logger.info(f"[响应] 返回参考音频 - 路径: {audio_path}, 耗时: {elapsed_time:.3f}秒")
-        return send_file(audio_path, mimetype="audio/wav")
+        # 让 Flask 自动检测 MIME 类型
+        return send_file(audio_path)
     except Exception as e:
         elapsed_time = time.time() - start_time
         logger.error(f"[错误] 试听克隆音色失败 - {e}, 耗时: {elapsed_time:.3f}秒")

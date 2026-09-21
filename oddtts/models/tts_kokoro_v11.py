@@ -139,6 +139,72 @@ class KokoroAPIV11():
             start_time = time.time()
             self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=self.model)
             logger.info(f"[响应] 创建英文管道完成 - 耗时: {time.time() - start_time:.3f}秒")
+            
+            # 预加载本地 voice 文件到 pipeline_en.voices 字典，避免重复下载
+            self._preload_local_voices_en()
+
+
+    def _preload_local_voices(self):
+        '''预加载本地 voice 文件到 pipeline.voices 字典，避免 hf_hub_download 重复检查'''
+        import os
+        import torch
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+        
+        # 获取模型目录
+        model_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        voices_dir = os.path.join(model_dir, 'voices')
+        
+        if not os.path.exists(voices_dir):
+            logger.debug(f"本地 voice 目录不存在: {voices_dir}")
+            return
+        
+        # 遍历所有 .pt 文件并预加载
+        loaded_count = 0
+        for voice_file in os.listdir(voices_dir):
+            if voice_file.endswith('.pt'):
+                voice_name = voice_file[:-3]  # 移除 .pt 后缀
+                voice_path = os.path.join(voices_dir, voice_file)
+                try:
+                    pack = torch.load(voice_path, weights_only=True)
+                    self.pipeline.voices[voice_name] = pack
+                    loaded_count += 1
+                except Exception as e:
+                    logger.warning(f"加载 voice 文件失败 {voice_file}: {e}")
+        
+        if loaded_count > 0:
+            logger.info(f"[响应] 预加载 {loaded_count} 个本地 voice 文件完成")
+    
+    def _preload_local_voices_en(self):
+        '''预加载本地 voice 文件到 pipeline_en.voices 字典'''
+        import os
+        import torch
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+        
+        # 获取模型目录
+        model_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        voices_dir = os.path.join(model_dir, 'voices')
+        
+        if not os.path.exists(voices_dir):
+            logger.debug(f"本地 voice 目录不存在: {voices_dir}")
+            return
+        
+        # 遍历所有 .pt 文件并预加载
+        loaded_count = 0
+        for voice_file in os.listdir(voices_dir):
+            if voice_file.endswith('.pt'):
+                voice_name = voice_file[:-3]  # 移除 .pt 后缀
+                voice_path = os.path.join(voices_dir, voice_file)
+                try:
+                    pack = torch.load(voice_path, weights_only=True)
+                    self.pipeline_en.voices[voice_name] = pack
+                    loaded_count += 1
+                except Exception as e:
+                    logger.warning(f"加载 voice 文件失败 {voice_file}: {e}")
+        
+        if loaded_count > 0:
+            logger.info(f"[响应] 预加载 {loaded_count} 个本地 voice 文件完成(英文管道)")
 
 
     def en_callable(self, text):
@@ -163,6 +229,9 @@ class KokoroAPIV11():
             logger.info(f"[响应] 加载管道: 开始创建中文管道...")
             self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
             logger.info(f"[响应] 管道加载完成 - 耗时: {time.time() - start_time:.3f}秒")
+            
+            # 预加载本地 voice 文件到 pipeline.voices 字典，避免重复下载
+            self._preload_local_voices()
 
 
     async def _generate_audio(self, text: str, tts_params: TTSParams) -> np.ndarray:
