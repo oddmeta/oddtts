@@ -147,8 +147,16 @@ class BertVits2API():
         return file_name
 
     async def do_synthesis(self, text: str, tts_params: TTSParams) -> str:  
+        # 校验 voice 是否有效，无效则使用默认的第一个 voice
+        voice = tts_params.voice
+        valid_voices = [v['name'] for v in bert_vits2_voices]
+        if voice not in valid_voices:
+            default_voice = bert_vits2_voices[0]['name']
+            logger.warning(f"请求的 voice '{voice}' 不存在，使用默认 voice '{default_voice}'")
+            voice = default_voice
+
         params = {
-            "data": [text, tts_params.voice, tts_params.rate, tts_params.volume, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
+            "data": [text, voice, tts_params.rate, tts_params.volume, 1, "ZH", False, 1, 0.2, None, "Happy", "", 0.7],
             "event_data": None,
             "fn_index": 0,
             "session_hash": str(uuid.uuid4())

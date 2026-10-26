@@ -2,7 +2,7 @@ from oddtts.oddtts_params import ODDTTS_TYPE
 from oddtts.utils.config_loader import load_config
 
 ## Flask server binding IP & port
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 9001
 
 ## working mode - Debug mode: True/False， Release mode: False/True

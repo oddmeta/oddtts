@@ -246,7 +246,13 @@ class KokoroAPIV11():
         # load model
         await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir)
 
-        self.voice = tts_params.voice
+        # 校验 voice 是否有效，无效则使用默认的第一个 voice
+        voice = tts_params.voice
+        if not await self._check_voice(voice):
+            default_voice = list(KokoroV11_voices.values())[0]['name']
+            logger.warning(f"请求的 voice '{voice}' 不存在，使用默认 voice '{default_voice}'")
+            voice = default_voice
+        self.voice = voice
 
         # load pipeline_en
         await self._load_pipeline_en()

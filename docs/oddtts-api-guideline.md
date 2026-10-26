@@ -107,6 +107,8 @@ OddTTS 提供高质量的文本转语音（Text-to-Speech）服务，完全兼�
 
 #### 3.1.2 请求示例 (cURL)
 
+文件合成：
+
 ```bash
 curl http://localhost:8000/api/oddtts/file \
   -H "Content-Type: application/json" \
@@ -119,6 +121,15 @@ curl http://localhost:8000/api/oddtts/file \
     "locale": "zh-CN",
     "response_format": "wav"
   }'
+```
+
+流式合成：
+
+```bash
+curl.exe -X POST https://tts.oddmeta.net/api/oddtts/stream ^
+  -H "Content-Type: application/json" ^
+  -d "{\"text\": \"欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！\", \"voice\": \"zm_011\", \"rate\": 0, \"volume\": 0, \"pitch\": 0}" ^
+  -o test.wav
 ```
 
 #### 3.1.3 响应示例

@@ -42,11 +42,20 @@ class OddGptSovitsAPI():
 
         return rate_, volume_, pitch_, lang_
 
+    async def _check_voice(self, voice: str) -> bool:
+        return voice in [voice['name'] for voice in oddtts_voices.values()]
+
     async def _generate_audio(self, text: str, tts_params: TTSParams) -> str|np.ndarray:
         """
         生成语音
         """
+        # 校验 voice 是否有效，无效则使用默认的第一个 voice
         voice = tts_params.voice
+        if not await self._check_voice(voice):
+            default_voice = list(oddtts_voices.values())[0]['name']
+            logger.warning(f"请求的 voice '{voice}' 不存在，使用默认 voice '{default_voice}'")
+            voice = default_voice
+
         rate_, volume_, pitch_, lang_ = self._params_adjustments(tts_params)
 
         # 生成语音

@@ -82,10 +82,17 @@ class KokoroAPI():
         # 生成音频数据
         await self._load_pipeline(lang_, tts_params)
         
+        # 校验 voice 是否有效，无效则使用默认的第一个 voice
+        voice = tts_params.voice
+        if not await self._check_voice(voice):
+            default_voice = list(Kokoro_voices.values())[0]['name']
+            logger.warning(f"请求的 voice '{voice}' 不存在，使用默认 voice '{default_voice}'")
+            voice = default_voice
+        
         start_time_generate = time.time()
         if self.pipeline is None:
             raise Exception("Kokoro pipeline未加载")
-        generator = self.pipeline(text, voice=tts_params.voice, speed=rate_, split_pattern=r'\n+')
+        generator = self.pipeline(text, voice=voice, speed=rate_, split_pattern=r'\n+')
 
         # 获取生成结果 (这是一个 KPipeline.Result 对象)
         result = next(generator)
