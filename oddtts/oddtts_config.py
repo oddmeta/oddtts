@@ -25,6 +25,8 @@ oddtts_cfg_defaults = {
     "model_base_dir": "models",
     ## 克隆音色根目录（参考音频和元数据存放于此目录下，按 engine/voice_id 子目录组织）
     "voices_base_dir": "voices",
+    ## GPT-SoVITS 推理服务 API 地址（需用户本地启动服务，如: python api.py / api_v2.py）
+    "gptsovits_api_url": "http://127.0.0.1:9880",
     ## HTTPS configuration
     "enable_https": False,
     "ssl_cert_path": "scripts/cert.pem",

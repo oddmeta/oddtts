@@ -117,7 +117,8 @@ O   O  d   d  d   d  M   M  e        t    a     a
                 print("程序将继续启动，模型将在首次请求时尝试加载。")
 
         if platform.system() == 'Windows':
-            url = f"http://{host}:{port}/"
+            # url = f"http://{host}:{port}/"
+            url = f"http://127.0.0.1:{port}/"
             import threading
             threading.Timer(1.5, lambda u=url: webbrowser.open(u)).start()
 
