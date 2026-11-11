@@ -4,7 +4,35 @@
 
 # OddTTS - 多引擎TTS语音合成API封装(兼容OpenAI TTS API)
 
-OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、ChatTTS、Bert-VITS2、GptSovits等，同时也支持OpenAI TTS API的调用。
+OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API接口和友好的Web界面，一套接口搞定多种主流TTS引擎，包括EdgeTTS、Kokoro-82M-v1.1-zh、ZipVoice、ChatTTS、Bert-VITS2、GptSovits v2、Moss-TTS-Nano、Audio8等，同时也支持OpenAI TTS API的调用。
+
+> **v2.0 亮点：音色克隆** — 上传一段 3-10 秒的参考音频即可克隆任意音色，通过 API 或 Web 界面像内置音色一样使用。
+
+> 注意：
+> - 首次运行时，会自动下载模型文件。
+> - 模型文件大小：
+>   - Kokoro-82M-v1.1-zh模型：376MB左右。
+>   - EdgeTTS模型：0MB，无需下载模型。
+>   - ChatTTS模型：2.4GB（FP16精度）。
+>   - Bert-VITS2模型：2GB 左右（主干+BERT特征网络，每多一个语种需增加约1.3GB）。
+>   - GptSovits v2模型：2.5GB左右。
+>   - Moss-TTS-Nano 0.1B ONNX：约200MB（纯CPU，近20种语言）。
+>   - ZipVoice INT8：约186MB（纯CPU，支持中英混合，音色克隆）。
+>   - Audio8 0.1B ONNX INT8：约150MB（纯CPU，11种语言）。
+>   - Audio8 0.6B ONNX INT4：约400MB（纯CPU，11种语言）。
+> - 显存需求：
+>   - EdgeTTS模型：0MB。
+>   - Kokoro-82M-v1.1-zh模型：0MB（普通CPU可运行）。
+>   - Moss-TTS-Nano / Audio8 模型：0MB（纯CPU）。
+>   - ChatTTS模型：至少 2.5GB。
+>   - Bert-VITS2模型：至少 5GB。少样本微调训练，建议使用显存 24GB 以上的 GPU。
+>   - GptSovits v2模型：至少 8GB。少样本微调训练，建议使用显存 24GB/48GB 以上的 GPU。
+> - 国内用户建议使用镜像加速下载模型文件。
+>   - Windows: set HF_ENDPOINT=https://hf-mirror.com
+>   - Linux/MacOS: export HF_ENDPOINT=https://hf-mirror.com
+> - 模型文件大小较大，建议在有足够磁盘空间的环境运行，或者自定义模型路径（将 models/hf_home 改成你自己的路径）。
+>   - Windows: set HF_HOME=x:/models/hf_home
+>   - Linux/MacOS: export HF_HOME=/models/hf_home
 
 ## 一、前言
 
@@ -14,14 +42,15 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 
 考虑到TTS功能的用途广泛，就把它单独出来，并开源了。希望对TTS有需求的同学有帮助。
 
-<font color=red>**注：如果你要用除EdgeTTS外的其它几个TTS引擎，在安装使用OddTTS前，你需要先自行安装对应的TTS。**</font>
+<font color=red><b>注：如果你要用除EdgeTTS外的其它几个TTS引擎，在安装使用OddTTS前，你需要先自行安装对应的TTS。</b></font>
 
 ### 2. 为什么建议你选择OddTTS？
 
-- **多引擎支持**：集成了EdgeTTS、ChatTTS、Bert-VITS2、OddGptSovits等多种TTS引擎
+- **多引擎支持**：集成了EdgeTTS、Kokoro、ZipVoice、ChatTTS、Bert-VITS2、GptSovits、Moss-TTS-Nano、Audio8等多种TTS引擎
+- **音色克隆**：上传参考音频即可克隆任意音色，通过 API 和 Web 界面直接使用（v2.0+）
 - **多种调用方式**：支持文件路径返回、Base64编码返回、流式响应等多种输出方式
-- **友好的Web界面**：基于Gradio提供可视化操作界面
-- **RESTful API**：提供完整的REST API，便于集成到其他系统
+- **友好的Web界面**：提供可视化操作界面，含音色克隆管理面板
+- **RESTful API**：提供完整的REST API，便于集成到其他系统，兼容 OpenAI Audio API
 - **可配置性强**：支持GPU加速、并发线程数调整、模型预加载等配置选项
 - **跨平台兼容**：基于Python开发，支持Windows、Linux、macOS等多种操作系统
 
@@ -30,19 +59,27 @@ OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的API�
 | 模型名称 | 原版最低运行显存 | 原版流畅运行显存 | 原版满血显存 | INT8 量化最低显存 | INT4 量化最低显存 | 纯 CPU 能否运行 | CPU 运行速度 |
 |----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
 | EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 依赖于你的网速 |
+| Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| ZipVoice | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 中等 |
+| Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 高 |
+| Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | ✅ 可以 | 中等 |
 | ChatTTS | 2.5GB | 4GB | 6GB+ | 1.5GB | 1GB | ✅ 可以 | 较快 |
 | Bert-VITS2 | 5GB | 6GB | 8GB+ | 3GB | 2GB | ✅ 可以 | 中等 |
 | GPT-SoVITS v2 | 8GB | 10GB | 12GB+ | 4GB | 2.5GB | ❌ 不建议 | 较慢 |
-| Kokoro | 0GB | 0GB | 0GB+ | 0GB | 0GB | ✅ 可以 | 高 |
 
-> 小落同学用的是阿里云上99元每年的ECS, 只有2核2G，跑不动任何一个TTS模型，所以用的是EdgeTTS．
+> 小落同学使用情况
+> - Demo版本: 阿里云上99元每年的ECS（2核2G），跑不动任何一个TTS模型，所以用的是EdgeTTS．
+> - 本地版本：我自己电脑是一个十年前的老笔记本，用的是Kokoro-82M-v1.1-zh模型，纯CPU、且离线运行，运行速度也快。
 
 ## 二、快速开始
+
+Python环境要求：Python 3.12
 
 ### 1. 安装OddTTS
 
 ```bash
-pip install -i https://pypi.org/simple/ oddtts
+pip install -i oddtts
 ```
 
 ### 2. 启动 OddTTS
@@ -105,7 +142,8 @@ POST /api/oddtts/file
 
 - **功能**：生成TTS音频并返回文件路径
 - **请求体**：
-  ```json
+
+```json
   {
     \"text\": \"要转换为语音的文本\",
     \"voice\": \"语音名称\",
@@ -113,7 +151,8 @@ POST /api/oddtts/file
     \"volume\": 音量调整(-50到50),
     \"pitch\": 音调调整(-50到50)
   }
-  ```
+```
+
 - **返回**：`{\"status\": \"success\", \"file_path\": \"音频文件路径\", \"format\": \"mp3\"}`
 
 #### 5）生成TTS音频（返回Base64）
@@ -145,12 +184,68 @@ GET /oddtts/health
 - **功能**：检查服务是否正常运行
 - **返回**：`{\"status\": \"healthy\", \"message\": \"API服务运行正常\"}`
 
+#### 8）音色克隆 - 上传并注册音色
+
+```
+POST /api/voice/clone
+```
+
+- **功能**：上传参考音频文件并注册为自定义音色
+- **Content-Type**：`multipart/form-data`
+- **表单字段**：
+  - `audio_file` — 参考音频文件（wav/mp3/flac，建议 3-10 秒）
+  - `name` — 音色标识（如 `xiaoming`）
+  - `display_name` — 展示名称（如 `小明`）
+  - `engine` — 目标引擎（默认 `moss_nano`）
+  - `locale` — 语言（默认 `zh-CN`）
+- **返回**：音色信息 JSON
+
+#### 9）音色克隆 - 列出自定义音色
+
+```
+GET /api/voice/clone/list
+```
+
+- **功能**：列出所有自定义克隆音色
+- **查询参数**：`engine`（可选）— 按引擎筛选
+- **返回**：克隆音色数组
+
+#### 10）音色克隆 - 删除克隆音色
+
+```
+DELETE /api/voice/clone/<engine>/<voice_id>
+```
+
+- **功能**：删除克隆音色及其参考音频
+- **返回**：成功/失败 JSON
+
+#### 11）音色克隆 - 试听参考音频
+
+```
+GET /api/voice/clone/audio/<engine>/<voice_id>
+```
+
+- **功能**：播放/下载克隆音色的参考音频
+- **返回**：音频二进制流（WAV 格式）
+
+> **注意**：克隆音色会自动合并到语音列表（`/v1/audio/voice/list`）中，可直接在 OpenAI 兼容 API 中通过 `voice` 参数使用。
+
 
 ### 2. API调用示例
 
-以下是一个OddTTS的API调用的示例：
+以下是一些OddTTS的API调用的示例。
 
-#### 1）OpenAI 兼容接口
+> 其中`voice`需要先从后端获取语音列表，再填入当前模型支持的语音名称（接口是：`/v1/audio/voice/list`），<font color=red>不同的模型的voice音色是不一样的</font>。
+
+#### 1）使用curl调用API
+
+```bash
+curl.exe -X POST http://localhost:9001/api/oddtts/file ^
+  -H "Content-Type: application/json" ^
+  -d "{\"text\": \"欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！\", \"voice\": \"zm_011\", \"rate\": 0, \"volume\": 0, \"pitch\": 0}"
+```
+
+#### 2）使用OpenAI库调用API
 
 ```
 from openai import OpenAI
@@ -158,7 +253,7 @@ from openai import OpenAI
 base_url = "http://localhost:9001/v1"
 model = "oddtts-1"
 api_key = "dummy"
-voice = "zf_xiaobei"
+voice = "zm_011"
 
 text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
 
@@ -181,7 +276,7 @@ if __name__ == "__main__":
 
 ```
 
-#### 2）使用requests库调用API
+#### 3）使用requests库调用API
 
 ```python
 import requests
@@ -190,7 +285,7 @@ import requests
 API_BASE_URL = "http://localhost:9001"
 
 # 测试文本
-TEST_TEXT = \"Hello! 这是一个API测试。This is an API test.\"
+TEST_TEXT = \"欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!\"
 
 # 获取语音列表
 def test_api_voices():
@@ -213,15 +308,58 @@ def test_api_tts_file(voice_name):
     print(f\"音频文件路径: {result.get('file_path')}\")
 ```
 
+#### 4）使用JavaScript调用API
+
+```javascript
+async function generateTTS(text, voice) {
+    const response = await fetch('http://localhost:9001/api/oddtts/file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            text: text,
+            voice: voice,
+            rate: 0,
+            volume: 0,
+            pitch: 0
+        })
+    });
+    const result = await response.json();
+    console.log('音频文件路径:', result.file_path);
+    return result;
+}
+
+generateTTS('欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！', 'zm_011');
+```
+
+#### 5）音色克隆示例（curl）
+
+```bash
+# 上传参考音频并注册克隆音色
+curl -X POST http://localhost:9001/api/voice/clone \
+  -F "audio_file=@reference.wav" \
+  -F "name=xiaoming" \
+  -F "display_name=小明" \
+  -F "engine=moss_nano"
+
+# 通过 OpenAI 兼容 API 使用克隆音色
+curl -X POST http://localhost:9001/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": \"你好，这是克隆音色测试\", \"voice\": \"xiaoming\"}" \
+  --output cloned_speech.mp3
+```
+
 ## 四、Web界面使用
 
-服务启动后，可以通过浏览器访问 `http://localhost:9001/` 打开Gradio Web界面，支持以下功能：
+服务启动后，可以通过浏览器访问 `http://localhost:9001/` 打开 Web 界面，支持以下功能：
 
 - 文本输入区域：输入要转换为语音的文本
-- 语音选择：选择不同的语音和语言
+- 语音选择：选择不同的语音和语言（克隆音色带 🎤 标记）
 - 参数调整：调整语速、音量、音调等参数
 - 音频生成：点击按钮生成并播放语音
 - 音频下载：下载生成的语音文件
+- **音色克隆面板**：上传参考音频、管理克隆音色、试听和删除
 
 ## 五、常见问题
 
@@ -245,6 +383,6 @@ def test_api_tts_file(voice_name):
 
 ## 六、许可证
 
-OddTTS 项目没有任何许可证。
-自由复制，没有任何附加条件！只需快乐编码！也欢迎提交问题和改进建议！
+MIT 许可证 - 详见 LICENSE 文件。商用、个人用、随便用。
 
+也欢迎提交问题和改进建议！也可联系我个人微信：`oddmeta`。

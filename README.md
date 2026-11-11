@@ -2,42 +2,79 @@
 
 [TOC]
 
-# OddTTS - Multi-Engine TTS Voice Synthesis API Wrapper (with OpenAI TTS API compatibility)
+# OddTTS - Multi-Engine TTS Speech Synthesis API Server (Compatible with OpenAI TTS API)
 
-OddTTS is a powerful multi-engine text-to-speech service that provides a unified API interface and user-friendly web interface, allowing you to access multiple mainstream TTS engines (including EdgeTTS, ChatTTS, Bert-VITS2, GptSovits, etc.) with a single set of interfaces, and also with OpenAI TTS API compatibility.
+OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including EdgeTTS, Kokoro-82M-v1.1-zh, ZipVoice, ChatTTS, Bert-VITS2, GptSovits v2, Moss-TTS-Nano, Audio8, etc., and also supports OpenAI TTS API calls.
 
-## I. Preface
+> **v2.0 Highlight: Voice Cloning** — Upload a 3-10 second reference audio to clone any voice, then use it like a built-in voice via API or Web UI.
+
+> Notes:
+> - Model files will be downloaded automatically on the first run.
+> - Model file sizes:
+>   - Kokoro-82M-v1.1-zh model: ~376MB.
+>   - EdgeTTS model: 0MB, no download required.
+>   - ChatTTS model: 2.4GB (FP16 precision).
+>   - Bert-VITS2 model: ~2GB (backbone + BERT feature network; each additional language requires ~1.3GB more).
+>   - GptSovits v2 model: ~2.5GB.
+>   - Moss-TTS-Nano 0.1B ONNX: ~200MB (pure CPU, ~20 languages).
+>   - ZipVoice INT8: ~186MB (pure CPU, Chinese + English, voice cloning).
+>   - Audio8 0.1B ONNX INT8: ~150MB (pure CPU, 11 languages).
+>   - Audio8 0.6B ONNX INT4: ~400MB (pure CPU, 11 languages).
+> - VRAM requirements:
+>   - EdgeTTS model: 0MB.
+>   - Kokoro-82M-v1.1-zh model: 0MB (runs on ordinary CPU).
+>   - Moss-TTS-Nano / Audio8 models: 0MB (pure CPU).
+>   - ChatTTS model: at least 2.5GB.
+>   - Bert-VITS2 model: at least 5GB. For few-shot fine-tuning, a GPU with 24GB+ VRAM is recommended.
+>   - GptSovits v2 model: at least 8GB. For few-shot fine-tuning, a GPU with 24GB/48GB+ VRAM is recommended.
+> - Users in China are recommended to use a mirror to accelerate model downloads.
+>   - Windows: set HF_ENDPOINT=https://hf-mirror.com
+>   - Linux/MacOS: export HF_ENDPOINT=https://hf-mirror.com
+> - Model files are large; it is recommended to run in an environment with sufficient disk space, or customize the model path (change models/hf_home to your own path).
+>   - Windows: set HF_HOME=x:/models/hf_home
+>   - Linux/MacOS: export HF_HOME=/models/hf_home
+
+## I. Introduction
 
 ### 1. About OddTTS
 
-I needed TTS functionality for my project **[XiaoLuo Tongxue](https://x.oddmeta.net "XiaoLuo Tongxue")** (Little Luo Classmate). Due to hardware constraints (an Alibaba Cloud ECS server costing 99 yuan/year), I initially could only use EdgeTTS. However, my personal computer has better specifications, so I tried multiple different TTS engines. I needed to create a unified wrapper for these TTS models so that XiaoLuo Tongxue could switch between different TTS engines at any time - thus OddTTS was born.
+Because the **[Xiaoluo Tongxue](https://x.oddmeta.net "Xiaoluo Tongxue")** project I am working on requires TTS speech synthesis functionality, and due to the hardware limitations of Xiaoluo Tongxue (an Alibaba Cloud ECS server at 99 CNY/year), EdgeTTS was the only option at first. However, my own computer has slightly better specs, so I tried several different TTS engines. I needed to create a unified wrapper for these TTS models so that Xiaoluo Tongxue could switch between different TTS engines at any time, and thus OddTTS was born.
 
-Considering the wide range of applications for TTS functionality, I separated it into an independent project and open-sourced it. I hope it helps students with TTS needs.
+Considering the wide range of uses for TTS functionality, I separated it out and open-sourced it. I hope it will be helpful to those who need TTS.
 
-<font color=red>**Note: If you want to use TTS engines other than EdgeTTS, you need to install the corresponding TTS engines yourself before installing and using OddTTS.**</font>
+<font color=red><b>Note: If you want to use TTS engines other than EdgeTTS, you need to install the corresponding TTS engine yourself before installing and using OddTTS.</b></font>
 
 ### 2. Why Choose OddTTS?
 
-- **Multi-engine support**: Integrates EdgeTTS, ChatTTS, Bert-VITS2, OddGptSovits, and other TTS engines
-- **Multiple calling methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods
-- **User-friendly web interface**: Provides a visual operation interface based on Gradio
-- **RESTful API**: Offers a complete REST API for easy integration into other systems
-- **Strong configurability**: Supports GPU acceleration, concurrent thread adjustment, model preloading, and other configuration options
-- **Cross-platform compatibility**: Developed based on Python, supporting Windows, Linux, macOS, and other operating systems
+- **Multi-Engine Support**: Integrates EdgeTTS, Kokoro, ZipVoice, ChatTTS, Bert-VITS2, GptSovits, Moss-TTS-Nano, Audio8, and other TTS engines.
+- **Voice Cloning**: Upload a reference audio to clone any voice, usable via API and Web UI (v2.0+).
+- **Multiple Calling Methods**: Supports file path return, Base64 encoding return, streaming response, and other output methods.
+- **User-Friendly Web UI**: Provides a visual operation interface with voice cloning management panel.
+- **RESTful API**: Provides a complete REST API for easy integration into other systems, including OpenAI-compatible endpoints.
+- **Highly Configurable**: Supports GPU acceleration, concurrent thread adjustment, model preloading, and other configuration options.
+- **Cross-Platform Compatibility**: Developed based on Python, supports Windows, Linux, macOS, and other operating systems.
 
 ### 3. Recommended Hardware
 
-| Model Name | Original Minimum VRAM | Original Smooth VRAM | Original Full VRAM | INT8 Quantized Minimum VRAM | INT4 Quantized Minimum VRAM | Can Run on Pure CPU | CPU Running Speed |
-|------------|----------|---------|-------|--------|-------|--------------------|------------------|
-| EdgeTTS    | 0GB      | 0GB     | 0GB   | 0GB    | 0GB   | ✅ Yes             | Depends on your network speed |
-| ChatTTS    | 2.5GB    | 4GB     | 6GB+  | 1.5GB  | 1GB   | ✅ Yes             | Fast             |
-| Bert-VITS2 | 5GB      | 6GB     | 8GB+  | 3GB    | 2GB   | ✅ Yes             | Moderate         |
-| GPT-SoVITS v2 | 8GB   | 10GB    | 12GB+ | 4GB    | 2.5GB | ❌ Not recommended | Slow             |
-| **Kokoro** | 0GB | 0GB | 0GB+ | 0GB | 0GB | ✅ Yes | Fast |
+| Model Name | Minimum VRAM (Original) | Smooth VRAM (Original) | Full VRAM (Original) | INT8 Quantized Minimum VRAM | INT4 Quantized Minimum VRAM | Pure CPU Viable | CPU Speed |
+|----------------|------------------|------------------|--------------|------------------|------------------|---------------|------------|
+| EdgeTTS | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Depends on your network speed |
+| Kokoro | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| ZipVoice | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Medium |
+| Moss-TTS-Nano | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| Audio8 0.1B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | High |
+| Audio8 0.6B | 0GB | 0GB | 0GB | 0GB | 0GB | Yes | Medium |
+| ChatTTS | 2.5GB | 4GB | 6GB+ | 1.5GB | 1GB | Yes | Relatively fast |
+| Bert-VITS2 | 5GB | 6GB | 8GB+ | 3GB | 2GB | Yes | Medium |
+| GPT-SoVITS v2 | 8GB | 10GB | 12GB+ | 4GB | 2.5GB | Not recommended | Slow |
 
-> XiaoLuo Tongxue uses an Alibaba Cloud ECS server costing 99 yuan/year with only 2 cores and 2GB of memory, which can't run any TTS models, so it uses EdgeTTS.
+> Xiaoluo Tongxue Usage
+> - Demo version: Alibaba Cloud ECS at 99 CNY/year (2 cores, 2GB), cannot run any TTS model locally, so EdgeTTS is used.
+> - Local version: My own computer is a ten-year-old laptop, using the Kokoro-82M-v1.1-zh model, running purely on CPU and offline, with fast execution speed.
 
 ## II. Quick Start
+
+**Note**: Before using OddTTS, please make sure you have installed Python 3.12 or later and have activated a virtual environment.
 
 ### 1. Install OddTTS
 
@@ -47,19 +84,19 @@ pip install -i https://pypi.org/simple/ oddtts
 
 ### 2. Start OddTTS
 
-#### 1. Default Configuration
+#### 1) Start with Default Configuration
 
-Simply execute the following command in the installed virtual environment to start:
+Simply run the following command in your installed virtual environment to start:
 
 ```bash
 oddtts
 ```
 
-After starting, OddTTS will bind to 127.0.0.1 (local access only) on port 9001 by default. Access it through your browser at: http://localhost:9001
+After startup, OddTTS will bind to 127.0.0.1 (local access only) by default, on port 9001. Access it in your browser at: http://localhost:9001
 
-#### 2. Custom Configuration
+#### 2) Start with Custom Configuration
 
-To allow access from other IPs, use the following command to start the service, setting host to 0.0.0.0, and you can also change the port to a custom port.
+To allow access from other IPs, start the service with the following command, setting the host to 0.0.0.0; the port can also be customized.
 
 ```bash
 oddtts --host 0.0.0.0 --port 8080
@@ -69,13 +106,13 @@ oddtts --host 0.0.0.0 --port 8080
 
 ### 1. API Interface List
 
-#### 1) OpenAI TTS API Compatibility
+#### 1) OpenAI API Compatible Interface
 
 ```
 GET /v1/audio/speech
 ```
 
-- **Function**: OpenAI TTS API compatibility, details see [OpenAI TTS API](https://platform.openai.com/docs/api-reference/audio/create).
+- **Function**: OpenAI TTS API compatible interface, details see [OpenAI TTS API](https://platform.openai.com/docs/api-reference/audio/create).
 - **Return**: mp3 audio data.
 
 #### 2) Get Voice List
@@ -83,8 +120,9 @@ GET /v1/audio/speech
 ```
 GET /v1/audio/voice/list
 ```
-- **Function**: Get all voices supported by the current TTS engine
-- **Return**: Voice list, each voice contains name, language, gender, etc.
+
+- **Function**: Get all voices supported by the current TTS engine.
+- **Return**: Voice list, each voice contains name, language, gender, and other information.
 
 #### 3) Get Specific Voice Details
 
@@ -92,9 +130,9 @@ GET /v1/audio/voice/list
 GET /v1/audio/voice/list/{voice_name}
 ```
 
-- **Function**: Get detailed information about a specific voice
-- **Parameter**: `voice_name` - Voice name
-- **Return**: Detailed voice information
+- **Function**: Get detailed information for a specified voice.
+- **Parameter**: `voice_name` - voice name.
+- **Return**: Detailed voice information.
 
 #### 4) Generate TTS Audio (Return File Path)
 
@@ -102,18 +140,20 @@ GET /v1/audio/voice/list/{voice_name}
 POST /api/oddtts/file
 ```
 
-- **Function**: Generate TTS audio and return the file path
+- **Function**: Generate TTS audio and return the file path.
 - **Request Body**:
-  ```json
+
+```json
   {
-    \"text\": \"Text to be converted to speech\",
-    \"voice\": \"Voice name\",
-    \"rate\": Speed adjustment (-50 to 50),
-    \"volume\": Volume adjustment (-50 to 50),
-    \"pitch\": Pitch adjustment (-50 to 50)
+    "text": "Text to be converted to speech",
+    "voice": "Voice name",
+    "rate": Speech rate adjustment (-50 to 50),
+    "volume": Volume adjustment (-50 to 50),
+    "pitch": Pitch adjustment (-50 to 50)
   }
-  ```
-- **Return**: `{\"status\": \"success\", \"file_path\": \"Audio file path\", \"format\": \"mp3\"}`
+```
+
+- **Return**: `{"status": "success", "file_path": "Audio file path", "format": "mp3"}`
 
 #### 5) Generate TTS Audio (Return Base64)
 
@@ -121,9 +161,9 @@ POST /api/oddtts/file
 POST /api/oddtts/base64
 ```
 
-- **Function**: Generate TTS audio and return Base64 encoding
-- **Request Body**: Same as the file path API
-- **Return**: `{\"status\": \"success\", \"base64\": \"Base64 encoded audio data\", \"format\": \"mp3\"}`
+- **Function**: Generate TTS audio and return Base64 encoding.
+- **Request Body**: Same as file path API.
+- **Return**: `{"status": "success", "base64": "Base64 encoded audio data", "format": "mp3"}`
 
 #### 6) Generate TTS Audio (Streaming Response)
 
@@ -131,9 +171,9 @@ POST /api/oddtts/base64
 POST /api/oddtts/stream
 ```
 
-- **Function**: Generate TTS audio and return it as a streaming response
-- **Request Body**: Same as the file path API
-- **Return**: Streaming audio data (audio/mpeg format)
+- **Function**: Generate TTS audio and return it as a streaming response.
+- **Request Body**: Same as file path API.
+- **Return**: Streaming audio data (audio/mpeg format).
 
 #### 7) Health Check
 
@@ -141,25 +181,80 @@ POST /api/oddtts/stream
 GET /oddtts/health
 ```
 
-- **Function**: Check if the service is running normally
-- **Return**: `{\"status\": \"healthy\", \"message\": \"API service is running normally\"}`
+- **Function**: Check if the service is running normally.
+- **Return**: `{"status": "healthy", "message": "API service is running normally"}`
 
-### 2. API Call Example
-
-Here's an example of calling the OddTTS API:
-
-
-#### 1）OpenAI TTS API Compatibility
+#### 8) Voice Cloning - Upload & Register Voice
 
 ```
+POST /api/voice/clone
+```
+
+- **Function**: Upload a reference audio file and register it as a custom voice.
+- **Content-Type**: `multipart/form-data`
+- **Form Fields**:
+  - `audio_file` — Reference audio file (wav/mp3/flac, recommended 3-10 seconds)
+  - `name` — Voice identifier (e.g., `xiaoming`)
+  - `display_name` — Display name (e.g., `小明`)
+  - `engine` — Target engine (default: `moss_nano`)
+  - `locale` — Language (default: `zh-CN`)
+- **Return**: Voice information JSON on success.
+
+#### 9) Voice Cloning - List Cloned Voices
+
+```
+GET /api/voice/clone/list
+```
+
+- **Function**: List all custom cloned voices.
+- **Query Parameter**: `engine` (optional) — Filter by engine name.
+- **Return**: Array of cloned voice objects.
+
+#### 10) Voice Cloning - Delete Cloned Voice
+
+```
+DELETE /api/voice/clone/<engine>/<voice_id>
+```
+
+- **Function**: Delete a cloned voice and its reference audio.
+- **Return**: Success/failure JSON.
+
+#### 11) Voice Cloning - Preview Reference Audio
+
+```
+GET /api/voice/clone/audio/<engine>/<voice_id>
+```
+
+- **Function**: Play/download the reference audio of a cloned voice.
+- **Return**: Audio binary stream (WAV format).
+
+> **Note**: Cloned voices are automatically merged into the voice list (`/v1/audio/voice/list`). You can use them directly in the OpenAI-compatible API by passing the voice identifier as the `voice` parameter.
+
+### 2. API Call Examples
+
+Here are some examples of calling the OddTTS API.
+
+> The `voice` parameter needs to be obtained from the backend voice list first, then filled in with the voice name supported by the current model (interface: `/v1/audio/voice/list`). <font color=red>The voice options differ for different models.</font>
+
+#### 1) Call API using curl
+
+```bash
+curl.exe -X POST http://localhost:9001/api/oddtts/file ^
+  -H "Content-Type: application/json" ^
+  -d "{\"text\": \"Welcome to follow my WeChat official account: Aodeyuan. Let's learn AI together and keep up with the times!\", \"voice\": \"zm_011\", \"rate\": 0, \"volume\": 0, \"pitch\": 0}"
+```
+
+#### 2) Call API using the OpenAI library
+
+```python
 from openai import OpenAI
 
 base_url = "http://localhost:9001/v1"
 model = "oddtts-1"
 api_key = "dummy"
-voice = "zf_xiaobei"
+voice = "zm_011"
 
-text = "欢迎关注我的公众号: 奥德元。一起学习AI，一起追赶时代！Good good study, day day up!"
+text = "Welcome to follow my WeChat official account: Aodeyuan. Let's learn AI together and keep up with the times! Good good study, day day up!"
 
 def test_openai_tts_api(voice_id):
     client = OpenAI(
@@ -180,7 +275,7 @@ if __name__ == "__main__":
 
 ```
 
-#### 2) API Call Example
+#### 3) Call API using the requests library
 
 ```python
 import requests
@@ -189,60 +284,104 @@ import requests
 API_BASE_URL = "http://localhost:9001"
 
 # Test text
-TEST_TEXT = \"Hello! This is an API test. 这是一个API测试。\"
+TEST_TEXT = "Welcome to follow my WeChat official account: Aodeyuan. Let's learn AI together and keep up with the times! Good good study, day day up!"
 
 # Get voice list
 def test_api_voices():
-    response = requests.get(f\"{API_BASE_URL}/v1/audio/voice/list\")
+    response = requests.get(f"{API_BASE_URL}/v1/audio/voice/list")
     voices = response.json()
-    print(f\"Successfully obtained {len(voices)} voice options\")
+    print(f"Successfully retrieved {len(voices)} voice options")
     return voices
 
 # Test generating TTS audio
 def test_api_tts_file(voice_name):
     payload = {
-        \"text\": TEST_TEXT,
-        \"voice\": voice_name,
-        \"rate\": 0,
-        \"volume\": 0,
-        \"pitch\": 0
+        "text": TEST_TEXT,
+        "voice": voice_name,
+        "rate": 0,
+        "volume": 0,
+        "pitch": 0
     }
-    response = requests.post(f\"{API_BASE_URL}/api/oddtts/file\", json=payload)
+    response = requests.post(f"{API_BASE_URL}/api/oddtts/file", json=payload)
     result = response.json()
-    print(f\"Audio file path: {result.get('file_path')}\")
+    print(f"Audio file path: {result.get('file_path')}")
+```
+
+#### 4) Call API using JavaScript
+
+```javascript
+async function generateTTS(text, voice) {
+    const response = await fetch('http://localhost:9001/api/oddtts/file', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            text: text,
+            voice: voice,
+            rate: 0,
+            volume: 0,
+            pitch: 0
+        })
+    });
+    const result = await response.json();
+    console.log('Audio file path:', result.file_path);
+    return result;
+}
+
+generateTTS('Welcome to follow my WeChat official account: Aodeyuan. Let\'s learn AI together and keep up with the times!', 'zm_011');
+```
+
+#### 5) Voice Cloning Example (curl)
+
+```bash
+# Upload reference audio and register a cloned voice
+curl -X POST http://localhost:9001/api/voice/clone \
+  -F "audio_file=@reference.wav" \
+  -F "name=xiaoming" \
+  -F "display_name=小明" \
+  -F "engine=moss_nano"
+
+# Use the cloned voice via OpenAI-compatible API
+curl -X POST http://localhost:9001/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": \"你好，这是克隆音色测试\", \"voice\": \"xiaoming\"}" \
+  --output cloned_speech.mp3
 ```
 
 ## IV. Web Interface Usage
 
-After starting the service, you can access `http://localhost:9001/` through your browser to open the Gradio Web interface, which supports the following functions:
+After the service starts, you can open the Web UI by visiting `http://localhost:9001/` in your browser. It supports the following features:
 
-- Text input area: Enter text to be converted to speech
-- Voice selection: Choose different voices and languages
-- Parameter adjustment: Adjust speed, volume, pitch, and other parameters
-- Audio generation: Click the button to generate and play speech
-- Audio download: Download the generated speech file
+- Text input area: Enter the text to be converted to speech.
+- Voice selection: Choose different voices and languages (including cloned voices marked with 🎤).
+- Parameter adjustment: Adjust speech rate, volume, pitch, and other parameters.
+- Audio generation: Click the button to generate and play speech.
+- Audio download: Download the generated audio file.
+- **Voice Cloning Panel**: Upload reference audio, manage cloned voices, preview and delete.
 
-## V. Common Issues
+## V. Frequently Asked Questions
 
 1. **Service startup failure**
-   - Check if the port is occupied
-   - Confirm all dependency packages are correctly installed
-   - View the log file for detailed error information
+   - Check if the port is occupied.
+   - Confirm that all dependency packages are installed correctly.
+   - Check the log file for detailed error information.
 
 2. **Speech synthesis failure**
-   - Check if the TTS engine configuration is correct
-   - Confirm that the selected voice exists in the current TTS engine
-   - For engines that require internet access, confirm that the network connection is normal
+   - Check if the TTS engine configuration is correct.
+   - Confirm that the selected voice exists in the current TTS engine.
+   - For some engines that require internet access, confirm that the network connection is normal (e.g., EdgeTTS).
 
 3. **How to switch TTS engines**
-   - Modify the `tts_type` configuration item in the `oddtts_config.py` file
-   - Restart the service for the configuration to take effect
+   - Modify the `tts_type` configuration item in the `oddtts_config.py` file.
+   - Restart the service for the configuration to take effect.
 
-4. **Output format**        
-   - Default output format: mp3
-   - You can specify other format such as wav, mp3 by setting  `response_format` parameter
+4. **Output format**
+   - The default output format is mp3.
+   - Other formats such as wav, mp3, etc., can be specified via the `response_format` parameter.
 
 ## VI. License
 
-The OddTTS project has no license.
-Feel free to copy without any conditions! Just code happily! Contributions and improvement suggestions are also welcome!
+MIT License - see LICENSE file for details. Commercial use, personal use, feel free to use it however you like.
+
+Questions and improvement suggestions are also welcome! Please contact me via email: <hi@oddmeta.com>
