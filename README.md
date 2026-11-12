@@ -4,6 +4,12 @@
 <p><strong>Multi-Engine TTS Speech Synthesis API Server</strong> — Compatible with OpenAI TTS API</p>
 
 <p>
+  <a href="https://www.oddmeta.net" target="_blank">🏠 Official Site</a> ·
+  <a href="https://tts.oddmeta.net" target="_blank">🌐 Live Demo</a> ·
+  <a href="https://oddmeta.net/docs/oddtts" target="_blank">📖 Documentation</a>
+</p>
+
+<p>
   <a href="https://pypi.org/project/oddtts/"><img src="https://img.shields.io/pypi/v/oddtts?style=flat-square&color=blue" alt="PyPI Version"></a>
   <a href="https://pypi.org/project/oddtts/"><img src="https://img.shields.io/pypi/pyversions/oddtts?style=flat-square&color=green" alt="Python Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
@@ -219,6 +225,15 @@ Key configuration options in `oddtts_config.py` (or `~/.config/oddtts/config.jso
 
 **Q: Can I run without a GPU?**
 - Yes! EdgeTTS, Kokoro, ZipVoice, MOSS-TTS-Nano, and Audio8 all run purely on CPU.
+
+## Contact Us
+
+| Channel | Handle |
+|---------|--------|
+| WeChat Official Account | 奥德元 |
+| WeChat | oddmeta |
+| Weibo | [oddmeta](https://weibo.com/oddmeta) |
+| Twitter / X | [oddmet](https://x.com/oddmet) |
 
 ## License
 

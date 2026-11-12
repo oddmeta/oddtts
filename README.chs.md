@@ -4,6 +4,12 @@
 <p><strong>多引擎 TTS 语音合成 API 服务</strong> — 兼容 OpenAI TTS API</p>
 
 <p>
+  <a href="https://www.oddmeta.net" target="_blank">🏠 官方网站</a> ·
+  <a href="https://minutes.oddmeta.net" target="_blank">🌐 在线演示</a> ·
+  <a href="https://oddmeta.net/docs/oddminutes" target="_blank">📖 文档中心</a>
+</p>
+
+<p>
   <a href="https://pypi.org/project/oddtts/"><img src="https://img.shields.io/pypi/v/oddtts?style=flat-square&color=blue" alt="PyPI Version"></a>
   <a href="https://pypi.org/project/oddtts/"><img src="https://img.shields.io/pypi/pyversions/oddtts?style=flat-square&color=green" alt="Python Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
@@ -219,6 +225,15 @@ oddtts/
 
 **Q: 没有 GPU 可以使用吗？**
 - 可以！EdgeTTS、Kokoro、ZipVoice、MOSS-TTS-Nano、Audio8 均支持纯 CPU 运行。
+
+## 📬 联系我们
+
+| 渠道 | 账号 |
+|------|------|
+| 微信公众号 | 奥德元 |
+| 微信 | oddmeta |
+| 微博 | [oddmeta](https://weibo.com/oddmeta) |
+| Twitter / X | [oddmet](https://x.com/oddmet) |
 
 ## 许可证
 
