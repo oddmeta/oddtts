@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "2.1.16"
-description = "Multi-engine text-to-speech synthesis service that provides a unified API interface"
+version = "2.1.17"
+description = "Multi-Engine TTS Speech Synthesis API Server with OpenAI-Compatible Endpoints, Voice Cloning, and Web UI"
 readme = "README.md"
 
 authors = [
