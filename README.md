@@ -4,6 +4,7 @@
 <p><strong>Multi-Engine TTS Speech Synthesis API Server</strong> — Compatible with OpenAI TTS API</p>
 
 <p>
+  <a href="https://github.com/oddmeta/oddtts" target="_blank">⭐ GitHub</a> ·
   <a href="https://www.oddmeta.net" target="_blank">🏠 Official Site</a> ·
   <a href="https://tts.oddmeta.net" target="_blank">🌐 Live Demo</a> ·
   <a href="https://oddmeta.net/docs/oddtts" target="_blank">📖 Documentation</a>
@@ -27,18 +28,6 @@
 > **v2.0 Highlight: Voice Cloning** — Upload a 3-10 second reference audio to clone any voice, then use it like a built-in voice via API or Web UI.
 
 OddTTS is a powerful multi-engine text-to-speech synthesis service that provides a unified API interface and a user-friendly Web UI. With a single set of APIs, it supports multiple mainstream TTS engines, including **EdgeTTS**, **Kokoro-82M-v1.1-zh**, **ZipVoice**, **ChatTTS**, **Bert-VITS2**, **GPT-SoVITS v2**, **MOSS-TTS-Nano**, **Audio8**, and more. It also provides an **OpenAI-compatible TTS API**.
-
-## Table of Contents
-
-- [Features](#features)
-- [Supported Engines](#supported-engines)
-- [Quick Start](#quick-start)
-- [API Documentation](#api-documentation)
-- [Web Interface](#web-interface)
-- [Project Structure](#project-structure)
-- [Configuration](#configuration)
-- [FAQ](#faq)
-- [License](#license)
 
 ## Features
 

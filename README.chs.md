@@ -4,6 +4,7 @@
 <p><strong>多引擎 TTS 语音合成 API 服务</strong> — 兼容 OpenAI TTS API</p>
 
 <p>
+  <a href="https://github.com/oddmeta/oddtts" target="_blank">⭐ GitHub</a> ·
   <a href="https://www.oddmeta.net" target="_blank">🏠 官方网站</a> ·
   <a href="https://minutes.oddmeta.net" target="_blank">🌐 在线演示</a> ·
   <a href="https://oddmeta.net/docs/oddminutes" target="_blank">📖 文档中心</a>
@@ -27,18 +28,6 @@
 > **v2.0 亮点：音色克隆** — 上传一段 3-10 秒的参考音频即可克隆任意音色，通过 API 或 Web 界面像内置音色一样使用。
 
 OddTTS 是一个功能强大的多引擎语音合成服务，提供统一的 API 接口和友好的 Web 界面。一套接口支持多种主流 TTS 引擎，包括 **EdgeTTS**、**Kokoro-82M-v1.1-zh**、**ZipVoice**、**ChatTTS**、**Bert-VITS2**、**GPT-SoVITS v2**、**MOSS-TTS-Nano**、**Audio8** 等，同时提供 **OpenAI 兼容的 TTS API**。
-
-## 目录
-
-- [特性](#特性)
-- [支持的引擎](#支持的引擎)
-- [快速开始](#快速开始)
-- [API 文档](#api-文档)
-- [Web 界面](#web-界面)
-- [项目结构](#项目结构)
-- [配置说明](#配置说明)
-- [常见问题](#常见问题)
-- [许可证](#许可证)
 
 ## 特性
 
