@@ -1,0 +1,64 @@
+from oddtts.oddtts_params import ODDTTS_TYPE
+from oddtts.utils.config_loader import load_config
+
+## Flask server binding IP & port
+HOST = "0.0.0.0"
+PORT = 9001
+
+## working mode - Debug mode: True/False， Release mode: False/True
+Debug = False
+
+## Default values — used to generate ~/.config/oddtts/config.json on first run
+oddtts_cfg_defaults = {
+    ## load model and allocate memory on startup
+    "preload_model": True,
+    ## enable gpu
+    "enable_gpu": False,
+    ## disable stream mode TTS
+    "disable_stream": False,
+    ## concurrent threads for TTS
+    "concurrent_thread": 8,
+    ## tts type
+    "tts_type": ODDTTS_TYPE.ODDTTS_KOKORO_V1_1,
+
+    ## 模型根目录（所有引擎模型存放于此目录下，按 engine.model_key 子目录组织）
+    "model_base_dir": "models",
+    ## 克隆音色根目录（参考音频和元数据存放于此目录下，按 engine/voice_id 子目录组织）
+    "voices_base_dir": "voices",
+    ## GPT-SoVITS 推理服务 API 地址（需用户本地启动服务，如: python api.py / api_v2.py）
+    "gptsovits_api_url": "http://127.0.0.1:9880",
+    ## HTTPS configuration
+    "enable_https": False,
+    "ssl_cert_path": "scripts/cert.pem",
+    "ssl_key_path": "scripts/key.pem",
+}
+
+## Load from ~/.config/oddtts/config.json, merge with defaults
+oddtts_cfg = load_config(oddtts_cfg_defaults)
+
+## Resolve concurrent_thread: 0 → 4
+if oddtts_cfg.get("concurrent_thread", 0) <= 0:
+    oddtts_cfg["concurrent_thread"] = 4
+
+## db config
+db_cfg = {
+    "db_engine": "sqlite",
+    "db_name": "oddtts.db",
+    "db_user": "",
+    "db_password": "",
+    "db_host": "",
+    "db_port": "",
+}
+
+## redis config
+redis_cfg = {
+    "redis_enabled": False,
+    "redis_host": "127.0.0.1",
+    "redis_port": 7379,
+    "redis_password": "",
+}
+
+## log config
+log_file = "oddtts.log"
+log_path = "logs/"
+log_level = 10 # 10-debug 20-info 30-warn 40-error 50-crit

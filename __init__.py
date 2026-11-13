@@ -1,1 +1,0 @@
-from .oddtts import app

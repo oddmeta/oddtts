@@ -9,7 +9,7 @@ import oddtts.oddtts_config as config
 API_BASE_URL = "http://" + config.HOST + ":" + str(config.PORT)
 
 # 测试文本
-TEST_TEXT = "Hello! 欢迎关注我的公众号：奥德元。一起学习AI，一起追赶时代。"
+TEST_TEXT = "Hello! 欢迎关注我的公众号：奥德元。一起学习AI，一起追赶时代。Good good study, day day up!"
 
 def test_api_voices():
     """测试获取语音列表API"""
@@ -170,7 +170,8 @@ def test_api_tts_stream(voice_name):
             "voice": voice_name,
             "rate": -5,
             "volume": 0,
-            "pitch": 5
+            "pitch": 5,
+            "response_format": "wav"
         }
         
         start_time = time.time()
@@ -237,18 +238,32 @@ def main():
     # 2. 测试获取特定语音详情API
     test_api_voice_details(english_voice)
     
-    # 3. 测试生成TTS音频(文件路径) API
+    # 3. 测试生成TTS音频(文件路径) API - WAV格式
+    print("\n--- 测试WAV格式 ---")
     test_api_tts_file(chinese_voice)
     
-    # 4. 测试生成TTS音频(Base64) API
+    # 4. 测试生成TTS音频(Base64) API - WAV格式
+    print("\n--- 测试WAV格式 ---")
     test_api_tts_base64(english_voice)
     
-    # 5. 测试生成TTS音频(流式) API
+    # 5. 测试生成TTS音频(流式) API - WAV格式
+    print("\n--- 测试WAV格式 ---")
     test_api_tts_stream(chinese_voice)
+    
+    # 6. 测试生成TTS音频(文件路径) API - MP3格式
+    print("\n--- 测试MP3格式 ---")
+    test_api_tts_file_mp3(chinese_voice)
+    
+    # 7. 测试生成TTS音频(Base64) API - MP3格式
+    print("\n--- 测试MP3格式 ---")
+    test_api_tts_base64_mp3(english_voice)
+    
+    # 8. 测试生成TTS音频(流式) API - MP3格式
+    print("\n--- 测试MP3格式 ---")
+    test_api_tts_stream_mp3(chinese_voice)
     
     print("\n" + "="*50)
     print("所有API测试完成!")
 
 if __name__ == "__main__":
     main()
-    

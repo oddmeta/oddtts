@@ -1,0 +1,149 @@
+from abc import ABC, abstractmethod
+from typing import Any
+
+from oddtts.oddtts_params import ODDTTS_TYPE, TTSParams
+from oddtts.oddtts_log import setup_logger
+
+from .tts_edge import EdgeTTSAPI
+from .tts_bert_vits2 import BertVits2API
+from .tts_bert_vits2_v2 import BertVits2V2API
+from .tts_odd_gptsovits import OddGptSovitsAPI
+from .tts_chattts import ChatTTSAPI
+from .tts_kokoro import KokoroAPI
+from .tts_kokoro_v11 import KokoroAPIV11
+from .tts_audio8_0_1b_onnx_int8 import Audio8_0_1b_OnnxInt8_API
+from .tts_audio8_0_6b_onnx_int4 import Audio8_0_6b_OnnxInt4_API
+from .tts_moss_nano import MossNanoAPI
+from .tts_zipvoice import ZipVoiceAPI
+
+logger = setup_logger(__name__)
+
+class BaseTTS(ABC):
+    '''合成语音统一抽象类'''
+
+    def __init__(self) -> None:
+        self.client: Any = None
+
+    async def get_voices(self) -> list[dict[str, str]]:
+        if self.client is None:
+            raise RuntimeError("TTS client is not initialized")
+        
+        return await self.client.get_voices()
+
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+        '''生成语音文件'''
+        if self.client is None:
+            raise RuntimeError("TTS client is not initialized")
+        
+        return await self.client.generate_tts_file(text=text, tts_params=tts_params)
+        
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        '''生成TTS音频并返回字节流'''
+        if self.client is None:
+            raise RuntimeError("TTS client is not initialized")
+
+        result = await self.client.generate_tts_bytes(text=text, tts_params=tts_params)
+
+        if isinstance(result, bytes):
+            return result
+        else:
+            raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
+
+    async def generate_tts_stream(self, text: str, tts_params: TTSParams):
+        '''生成TTS音频并返回字节流'''
+        if self.client is None:
+            raise RuntimeError("TTS client is not initialized")
+
+        async for chunk in self.client.generate_tts_stream(text=text, tts_params=tts_params):
+            yield chunk
+
+    async def preload(self) -> None:
+        '''预加载模型（可选，由具体 client 决定是否实现）'''
+        if self.client is not None and hasattr(self.client, 'preload'):
+            await self.client.preload()
+
+class OddTTSDriver:
+    '''TTS驱动类'''
+    def __init__(self, type: ODDTTS_TYPE):
+        self.type = type
+        self.strategies: dict[ODDTTS_TYPE, BaseTTS] = {}
+        self.tts = self.get_strategy(type)
+
+    async def get_voices(self, type: ODDTTS_TYPE) -> list[dict[str, str]]:
+        if self.tts is None:
+            self.tts = self.get_strategy(type)
+        
+        return await self.tts.get_voices()
+
+    async def generate_tts_file(self, tts_type: ODDTTS_TYPE, text: str, tts_params: TTSParams) -> str:
+        if self.tts is None:
+            self.tts = self.get_strategy(tts_type)
+        result = await self.tts.generate_tts_file(text=text, tts_params=tts_params)
+        if isinstance(result, str):
+            return result
+        else:
+            raise TypeError(f"期望返回 str 类型，但得到 {type(result).__name__}")
+
+    async def generate_tts_bytes(self, tts_type: ODDTTS_TYPE, text: str, tts_params: TTSParams) -> bytes:
+        if self.tts is None:
+            self.tts = self.get_strategy(tts_type)
+        result = await self.tts.generate_tts_bytes(text=text, tts_params=tts_params)
+        if isinstance(result, bytes):
+            return result
+        else:
+            raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
+    
+    async def generate_tts_stream(self, tts_type: ODDTTS_TYPE, text: str, tts_params: TTSParams):
+        if self.tts is None:
+            self.tts = self.get_strategy(tts_type)
+
+        async for chunk in self.tts.generate_tts_stream(text=text, tts_params=tts_params):
+            yield chunk
+
+    async def preload(self) -> None:
+        '''预加载当前 TTS 引擎的模型'''
+        if self.tts is None:
+            self.tts = self.get_strategy(self.type)
+        await self.tts.preload()
+
+    def get_strategy(self, tts_type: ODDTTS_TYPE) -> BaseTTS:
+        tts = BaseTTS()
+        if tts_type == ODDTTS_TYPE.ODDTTS_EDGETTS:
+            tts.client = EdgeTTSAPI()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_CHATTTS:
+            tts.client = ChatTTSAPI()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_BERTVITS2:
+            tts.client = BertVits2API()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_BERTVITS2_V2:
+            tts.client = BertVits2V2API()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_GPTSOVITS:
+            tts.client = OddGptSovitsAPI()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_KOKORO:
+            tts.client = KokoroAPI()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_KOKORO_V1_1:
+            tts.client = KokoroAPIV11()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_AUDIO8_0_1B_ONNX_INT8:
+            tts.client = Audio8_0_1b_OnnxInt8_API()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_AUDIO8_0_6B_ONNX_INT4:
+            tts.client = Audio8_0_6b_OnnxInt4_API()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_MOSS_NANO:
+            tts.client = MossNanoAPI()
+            return tts
+        elif tts_type == ODDTTS_TYPE.ODDTTS_ZIPVOICE:
+            tts.client = ZipVoiceAPI()
+            return tts
+        else:
+            logger.error(f"Unknown type: {tts_type}, fallback to Edge TTS")
+            #fallback: default use Edge TTS
+            # raise ValueError("Unknown type")
+            tts.client = EdgeTTSAPI()
+            return tts

@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oddtts"
+version = "2.1.17"
+description = "Multi-Engine TTS Speech Synthesis API Server with OpenAI-Compatible Endpoints, Voice Cloning, and Web UI"
+readme = "README.md"
+
+authors = [
+    {name = "Catherine Wei", email = "catherine@oddmeta.com"},
+    {name = "Jacky Wei", email = "jacky@oddmeta.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=2.0.0",
+    "flask-cors>=3.0.0",
+    "edge-tts",
+    "pydub>=0.25.1",
+    "kokoro",
+    "ordered-set",
+    "torch>=2.0.0",
+    "soundfile",
+    "numpy",
+    "requests",
+    "misaki[zh]",
+    "PyYAML",
+    "transformers>=4.57.0,<5",
+    "onnxruntime",
+    "sherpa-onnx>=1.13.0",
+    "modelscope>=1.20.0",
+    "huggingface-hub>=0.20.0",
+    # MOSS-TTS-Nano dependencies
+    "fastapi>=0.110.0",
+    "python-multipart>=0.0.9",
+    "sentencepiece>=0.1.99",
+    "torchaudio>=2.0.0",
+    "uvicorn>=0.29.0",
+    # Audio8 dependencies
+    "scipy==1.17.1",
+]
+
+[project.optional-dependencies]
+zipvoice = [
+    "sherpa-onnx>=1.13.0",
+    "soundfile",
+]
+
+[project.urls]
+Homepage = "https://oddmeta.net/docs/oddtts"
+Repository = "https://github.com/oddmeta/oddtts"
+Issues = "https://github.com/oddmeta/oddtts/issues"
+
+[project.scripts]
+oddtts = "oddtts.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oddtts*"]
+
+[tool.setuptools.package-data]
+oddtts = [
+    "static/*.ico",
+    "static/*.mp3",
+    "static/*.wav",
+    "static/*.json",
+    "static/*.png",
+    "static/*.txt",
+    "templates/*.html",
+    "docs/*",
+    "router/*.py",
+    "vendor/**/*",
+]

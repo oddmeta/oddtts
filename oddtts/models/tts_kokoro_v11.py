@@ -1,0 +1,374 @@
+import asyncio
+import time
+import json
+import sys
+
+from kokoro import KPipeline, KModel
+import numpy as np
+import torch
+
+from oddtts.utils.model_utils import ensure_model, resolve_model_dir
+from oddtts.oddtts_params import new_uuid, TTSParams, convert_audio_format, convert_ndarray_to_format
+from oddtts.oddtts_log import setup_logger
+
+logger = setup_logger(__name__)
+
+KokoroV11_voices = {
+    'Kokoro Voice (zh-CN, zf_001)': {'name': 'zf_001', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_001'}, 
+    'Kokoro Voice (zh-CN, zf_002)': {'name': 'zf_002', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_002'},
+    'Kokoro Voice (zh-CN, zf_003)': {'name': 'zf_003', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_003'},
+    'Kokoro Voice (zh-CN, zf_004)': {'name': 'zf_004', 'gender': 'Female', 'locale': 'zh-CN', 'short_name': 'zf_004'},
+    'Kokoro Voice (zh-CN, zm_009)': {'name': 'zm_009', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_009'},
+    'Kokoro Voice (zh-CN, zm_010)': {'name': 'zm_010', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_010'}, 
+    'Kokoro Voice (zh-CN, zm_011)': {'name': 'zm_011', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_011'},
+    'Kokoro Voice (zh-CN, zm_012)': {'name': 'zm_012', 'gender': 'Male', 'locale': 'zh-CN', 'short_name': 'zm_012'},
+}
+
+class KokoroAPIV11():
+
+    def __init__(self) -> None:
+        self.model = None
+        self.local_repo_id = "hexgrad/Kokoro-82M-v1.1-zh"
+        self.local_model_name = "kokoro-v1_1-zh.pth"
+        self._init_local_model_dir()
+        self.default_text = "关注我的公众号：奥德元，一起学习 AI，一起追赶时代。Good good study, day day up."
+        # 中文管道
+        self.pipeline = None
+        self.voice = "zm_009"
+        # 英文管道
+        self.pipeline_en = None
+        self.voice_en = "af_maple"
+
+    def _init_local_model_dir(self):
+        import os
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+
+        # 1. 优先使用配置中的路径（model_base_dir / model_key）
+        config_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        config_path = os.path.join(config_dir, "config.json")
+        model_path = os.path.join(config_dir, self.local_model_name)
+        if os.path.exists(config_path) and os.path.exists(model_path):
+            self.local_model_dir = config_dir
+            logger.info(f"[响应] 找到模型目录（配置）: {self.local_model_dir}")
+            return
+
+        # 2. 回退：探测多个可能路径（兼容旧目录结构）
+        possible_dirs = [
+            os.path.join(os.getcwd(), "ckpts"),
+            os.path.join(os.path.dirname(__file__), "ckpts"),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "ckpts"),
+        ]
+        for dir_path in possible_dirs:
+            config_path = os.path.join(dir_path, "config.json")
+            model_path = os.path.join(dir_path, self.local_model_name)
+            if os.path.exists(config_path) and os.path.exists(model_path):
+                self.local_model_dir = dir_path
+                logger.info(f"[响应] 找到模型目录（探测）: {self.local_model_dir}")
+                return
+
+        self.local_model_dir = config_dir
+        logger.info(f"[响应] 未找到本地模型目录，使用默认路径: {self.local_model_dir}")
+    
+    async def preload(self, device: str = 'cpu') -> None:
+        '''预加载模型：触发模型检测/下载并加载到内存'''
+        logger.info("[预加载] 开始预加载 Kokoro v1.1 模型...")
+        await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir, device=device)
+        logger.info("[预加载] Kokoro v1.1 模型预加载完成")
+
+    async def get_voices(self) -> list[dict[str, str]]:
+        return list(KokoroV11_voices.values())
+
+    async def _check_voice(self, voice: str) -> bool:
+        return voice in [voice['name'] for voice in KokoroV11_voices.values()]
+
+    def _params_adjustments(self, tts_params: TTSParams):
+        """
+        调整参数，确保它们的格式正确，包含正负符号
+        """
+        rate_ = 1 + tts_params.rate / 100
+        volume_ = tts_params.volume / 100
+        pitch_ = tts_params.pitch
+
+        if tts_params.locale == 'zh-CN':
+            lang_ = 'z'
+        elif tts_params.locale == 'en-US':
+            lang_ = 'e'
+        else:
+            lang_ = 'z'
+
+        return rate_, volume_, pitch_, lang_
+
+    async def _load_model(self, repo_id: str, local_dir: str, device: str = 'cpu') -> None:
+        '''
+        加载模型，优先使用本地 ckpts 目录，若本地不存在则尝试从 HuggingFace 下载
+        '''
+        if self.model is None:
+            start_time = time.time()
+            
+            import os
+            
+            # 确保模型已下载到 local_dir
+            ensure_model(
+                model_dir=local_dir,
+                repo_ids=repo_id,
+                marker_file="config.json",
+                tag="[Kokoro v1.1]",
+            )
+            
+            local_config_path = os.path.join(local_dir, "config.json")
+            local_model_path = os.path.join(local_dir, self.local_model_name)
+            
+            if not (os.path.exists(local_config_path) and os.path.exists(local_model_path)):
+                raise RuntimeError(f"[Kokoro v1.1] 模型文件不完整: 缺少 config.json 或 {self.local_model_name}")
+
+            with open(local_config_path, 'r', encoding='utf-8') as r:
+                config = json.load(r)
+
+            logger.info(f"[响应] 开始加载模型...")
+            self.model = KModel(repo_id=repo_id, config=config, model=local_model_path).to(device).eval()
+            self.local_model_dir = os.path.dirname(local_model_path)
+            logger.info(f"[响应] 模型加载完成 - 耗时: {time.time() - start_time:.3f}秒")
+        else:
+            logger.info(f"[响应] 模型已加载，无需重新加载")
+            self.model.to(device).eval()
+
+    async def _load_pipeline_en(self) -> None:
+        if self.pipeline_en is None:
+            logger.info(f"[响应] 加载管道: 开始创建英文管道...")
+            start_time = time.time()
+            self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=self.model)
+            logger.info(f"[响应] 创建英文管道完成 - 耗时: {time.time() - start_time:.3f}秒")
+            
+            # 预加载本地 voice 文件到 pipeline_en.voices 字典，避免重复下载
+            self._preload_local_voices_en()
+
+
+    def _preload_local_voices(self):
+        '''预加载本地 voice 文件到 pipeline.voices 字典，避免 hf_hub_download 重复检查'''
+        import os
+        import torch
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+        
+        # 获取模型目录
+        model_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        voices_dir = os.path.join(model_dir, 'voices')
+        
+        if not os.path.exists(voices_dir):
+            logger.debug(f"本地 voice 目录不存在: {voices_dir}")
+            return
+        
+        # 遍历所有 .pt 文件并预加载
+        loaded_count = 0
+        for voice_file in os.listdir(voices_dir):
+            if voice_file.endswith('.pt'):
+                voice_name = voice_file[:-3]  # 移除 .pt 后缀
+                voice_path = os.path.join(voices_dir, voice_file)
+                try:
+                    pack = torch.load(voice_path, weights_only=True)
+                    self.pipeline.voices[voice_name] = pack
+                    loaded_count += 1
+                except Exception as e:
+                    logger.warning(f"加载 voice 文件失败 {voice_file}: {e}")
+        
+        if loaded_count > 0:
+            logger.info(f"[响应] 预加载 {loaded_count} 个本地 voice 文件完成")
+    
+    def _preload_local_voices_en(self):
+        '''预加载本地 voice 文件到 pipeline_en.voices 字典'''
+        import os
+        import torch
+        from oddtts.oddtts_params import ODDTTS_TYPE
+        from oddtts.utils.model_utils import resolve_model_dir
+        
+        # 获取模型目录
+        model_dir = resolve_model_dir(ODDTTS_TYPE.ODDTTS_KOKORO_V1_1.model_key)
+        voices_dir = os.path.join(model_dir, 'voices')
+        
+        if not os.path.exists(voices_dir):
+            logger.debug(f"本地 voice 目录不存在: {voices_dir}")
+            return
+        
+        # 遍历所有 .pt 文件并预加载
+        loaded_count = 0
+        for voice_file in os.listdir(voices_dir):
+            if voice_file.endswith('.pt'):
+                voice_name = voice_file[:-3]  # 移除 .pt 后缀
+                voice_path = os.path.join(voices_dir, voice_file)
+                try:
+                    pack = torch.load(voice_path, weights_only=True)
+                    self.pipeline_en.voices[voice_name] = pack
+                    loaded_count += 1
+                except Exception as e:
+                    logger.warning(f"加载 voice 文件失败 {voice_file}: {e}")
+        
+        if loaded_count > 0:
+            logger.info(f"[响应] 预加载 {loaded_count} 个本地 voice 文件完成(英文管道)")
+
+
+    def en_callable(self, text):
+        # 可以为特定单词定制发音
+        if text == 'Kokoro':
+            return 'kˈOkəɹO'
+
+        # 默认使用英文管道和英文音色来处理英文文本
+        if self.pipeline_en is None:
+            logger.warning(f"英文管道未加载，无法处理英文文本: {text}")
+            return text  # 返回原始文本，可能会被中文管道处理成不理想的发音
+        
+        return next(self.pipeline_en(text, voice=self.voice_en)).phonemes
+
+
+    async def _load_pipeline(self, tts_params: TTSParams) -> None:
+        '''
+        加载管道
+        '''
+        if self.pipeline is None:
+            start_time = time.time()
+            logger.info(f"[响应] 加载管道: 开始创建中文管道...")
+            self.pipeline = KPipeline(lang_code='z', repo_id=self.local_repo_id, model=self.model, en_callable=self.en_callable)
+            logger.info(f"[响应] 管道加载完成 - 耗时: {time.time() - start_time:.3f}秒")
+            
+            # 预加载本地 voice 文件到 pipeline.voices 字典，避免重复下载
+            self._preload_local_voices()
+
+
+    async def _generate_audio(self, text: str, tts_params: TTSParams) -> np.ndarray:
+        """
+        生成语音
+        """
+        logger.info(f"生成语音，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+        rate_, volume_, pitch_, lang_ = self._params_adjustments(tts_params)
+
+        start_time = time.time()
+
+        # load model
+        await self._load_model(repo_id=self.local_repo_id, local_dir=self.local_model_dir)
+
+        # 校验 voice 是否有效，无效则使用默认的第一个 voice
+        voice = tts_params.voice
+        if not await self._check_voice(voice):
+            default_voice = list(KokoroV11_voices.values())[0]['name']
+            logger.warning(f"请求的 voice '{voice}' 不存在，使用默认 voice '{default_voice}'")
+            voice = default_voice
+        self.voice = voice
+
+        # load pipeline_en
+        await self._load_pipeline_en()
+
+        # load pipeline
+        await self._load_pipeline(tts_params)
+        
+        # 生成语音
+        logger.info(f"开始生成语音...")
+        start_time_pipeline = time.time()
+        # 调用管道生成语音
+        if self.pipeline is None:
+            logger.error("管道未加载，无法生成语音")
+            raise RuntimeError("Pipeline not loaded")
+        generator = self.pipeline(text, voice=self.voice, speed=rate_, split_pattern=r'\n+')
+
+        # 获取生成结果 (这是一个 KPipeline.Result 对象)
+        result = next(generator)
+
+        # 1. 访问 result.output.audio 获取 tensor
+        # 根据日志: result.output 是 KModel.Output 对象，里面有个 audio 属性是 tensor
+        if result.output is None or result.output.audio is None:
+            logger.error("生成结果中没有 audio 属性，无法转换为 numpy 数组")
+            raise ValueError("生成结果中没有 audio 属性")
+
+        audio_tensor = result.output.audio
+
+        # 2. 将 PyTorch Tensor 转换为 NumPy 数组
+        # .detach() 移除梯度追踪，.cpu() 确保在CPU内存中，.numpy() 转为 numpy
+        audio_numpy = audio_tensor.detach().cpu().numpy()
+
+        audio_duration = len(audio_numpy) / 24000
+        logger.info(f"文本长度：{len(text)}，生成语音耗时：{time.time() - start_time_pipeline:.3f}秒, 总耗时：{time.time() - start_time:.3f}秒，音频时长: {audio_duration:.2f}s")
+
+        return audio_numpy
+
+    async def generate_tts_file(self, text: str, tts_params: TTSParams) -> str:
+        logger.info(f"生成语音文件，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
+        audio_numpy = await self._generate_audio(text, tts_params)
+
+        # 3. 处理维度
+        # soundfile 需要 (样本数, 通道数) 的二维数组。
+        # Kokoro 输出的通常是 (样本数,) 的一维数组，我们需要变成 (样本数, 1)
+        if audio_numpy.ndim == 1:
+            audio_numpy = audio_numpy.reshape(-1, 1)
+
+        # 4. 获取采样率
+        # Kokoro 的标准采样率通常是 24000，也可以检查是否有属性直接提供
+        sample_rate = 24000 
+
+        # 5. 根据输出格式生成文件
+        output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
+        result = convert_ndarray_to_format(audio_numpy, sample_rate, output_format)
+        
+        if isinstance(result, str):
+            return result
+        else:
+            raise TypeError(f"期望返回 str 类型，但得到 {type(result).__name__}")
+
+    async def generate_tts_bytes(self, text: str, tts_params: TTSParams) -> bytes:
+        logger.info(f"生成语音字节流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
+        audio_numpy = await self._generate_audio(text, tts_params)
+        
+        output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
+                
+        result = convert_audio_format(
+            input_data=audio_numpy,
+            input_type="numpy",
+            output_format=output_format,
+            output_type="bytes",
+            sample_rate=24000
+        )
+        
+        if isinstance(result, bytes):
+            return result
+        else:
+            raise TypeError(f"期望返回 bytes 类型，但得到 {type(result).__name__}")
+    
+    async def generate_tts_stream(self, text: str, tts_params: TTSParams):
+
+        logger.info(f"生成语音流，参数：locale={tts_params.locale}, voice={tts_params.voice}, rate={tts_params.rate}, volume={tts_params.volume}, pitch={tts_params.pitch}")
+
+        audio_numpy = await self._generate_audio(text, tts_params)
+        
+        output_format = tts_params.response_format if hasattr(tts_params, 'response_format') else 'wav'
+
+        audio_data = convert_audio_format(
+            input_data=audio_numpy,
+            input_type="numpy",
+            output_format=output_format,
+            output_type="bytes",
+            sample_rate=24000
+        )
+        
+        yield audio_data
+
+
+def test_kokoro():
+    api = KokoroAPIV11()
+
+    text = sys.argv[1] if len(sys.argv) > 1 else api.default_text
+
+    tts_params = TTSParams(
+        voice="zf_001",
+        rate=0,
+        volume=0,
+        pitch=0,
+        locale="zh-CN",
+        response_format="wav"
+    )
+
+    file_name = asyncio.run(api.generate_tts_file(text, tts_params))
+
+    print(file_name)
+
+if __name__ == "__main__":
+    test_kokoro()

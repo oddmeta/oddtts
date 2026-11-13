@@ -1,0 +1,1 @@
+from .oddtts_flask import flask_app

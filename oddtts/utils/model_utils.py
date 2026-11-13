@@ -1,0 +1,366 @@
+"""
+通用模型下载工具模块
+支持从 HuggingFace Hub 和 ModelScope 下载模型
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import subprocess
+import importlib.util
+from typing import Optional
+
+from oddtts.oddtts_log import setup_logger
+
+logger = setup_logger(__name__)
+
+# 默认下载源优先级（auto 模式下依次尝试）
+DEFAULT_SOURCE_PRIORITY = ["modelscope", "huggingface"]
+
+# 环境变量键：控制默认下载源
+ENV_MODEL_SOURCE = "ODDTTS_MODEL_SOURCE"
+
+
+def get_project_root() -> str:
+    """返回 oddtts 包的根目录（即 oddtts/ 的上级目录）。
+
+    不依赖 os.getcwd()，而是通过 oddtts 包自身的 __file__ 定位，
+    确保无论从哪个目录启动服务器都能正确解析模型路径。
+    """
+    import oddtts as _pkg
+    return os.path.dirname(os.path.dirname(os.path.abspath(_pkg.__file__)))
+
+
+def is_pip_installed() -> bool:
+    """检测 oddtts 是否通过 pip 安装（而非源码运行）。"""
+    import oddtts as _pkg
+    pkg_dir = os.path.dirname(os.path.abspath(_pkg.__file__))
+    return "site-packages" in pkg_dir or "dist-packages" in pkg_dir
+
+
+def get_data_root() -> str:
+    """返回用户数据根目录（模型文件存储位置）。
+
+    - 源码运行（开发模式）: 项目根目录（与 get_project_root() 一致）
+    - pip 安装: 用户级数据目录，跨平台安全可写
+      - Windows: %LOCALAPPDATA%/oddtts
+      - Linux/macOS: ~/.local/share/oddtts
+    """
+    if not is_pip_installed():
+        return get_project_root()
+
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+        return os.path.join(base, "oddtts")
+    else:
+        return os.path.join(os.path.expanduser("~"), ".local", "share", "oddtts")
+
+
+def resolve_model_dir(model_key: str, env_var: str = None) -> str:
+    """将引擎的 model_key 解析为模型目录绝对路径。
+
+    路径规则：data_root / model_base_dir / model_key
+    例如: models/audio8_0_1b
+
+    优先级：
+    1. 环境变量 env_var（如果提供且已设置）
+    2. model_base_dir / model_key 相对于数据根目录解析
+
+    Args:
+        model_key: 引擎的模型子目录名（来自 ODDTTS_TYPE.model_key）
+        env_var: 可选的环境变量名，用于覆盖默认路径
+
+    Returns:
+        绝对路径
+    """
+    if env_var:
+        env_val = os.environ.get(env_var, "")
+        if env_val:
+            return os.path.abspath(env_val)
+    from oddtts.oddtts_config import oddtts_cfg
+    base = oddtts_cfg.get("model_base_dir", "models")
+    root = get_data_root()
+    return os.path.join(root, base, model_key)
+
+
+def _ensure_package(package_name: str, import_name: str = None) -> None:
+    """确保指定包已安装，未安装则尝试自动安装"""
+    check_name = (import_name or package_name).replace("-", "_")
+    if importlib.util.find_spec(check_name) is None:
+        logger.info(f"正在安装依赖包: {package_name} ...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+            logger.info(f"{package_name} 安装成功")
+        except Exception as e:
+            logger.error(f"{package_name} 安装失败: {e}")
+            raise RuntimeError(f"缺少必要依赖包: {package_name}，请手动安装") from e
+
+
+def get_default_source() -> str:
+    """获取默认下载源，优先从环境变量读取"""
+    env_source = os.environ.get(ENV_MODEL_SOURCE, "").lower()
+    if env_source in ("huggingface", "modelscope"):
+        return env_source
+    return "auto"
+
+
+def download_model(
+    repo_id: str,
+    local_dir: Optional[str] = None,
+    source: str = None,
+    cache_dir: Optional[str] = None,
+    **kwargs
+) -> str:
+    """
+    通用模型下载接口，支持 HuggingFace 和 ModelScope
+
+    Args:
+        repo_id: 模型仓库 ID，如 "hexgrad/Kokoro-82M-v1.1-zh"
+        local_dir: 下载到指定本地目录（可选）。若提供，模型文件会被复制/链接到此目录
+        source: 下载源，可选值:
+            - None / "auto": 自动尝试，默认先 HuggingFace 后 ModelScope
+            - "huggingface": 仅从 HuggingFace 下载
+            - "modelscope": 仅从 ModelScope 下载
+            也可通过环境变量 ODDTTS_MODEL_SOURCE 全局设置
+        cache_dir: 缓存目录（可选）
+        **kwargs: 额外参数，透传给底层下载函数
+
+    Returns:
+        模型本地绝对路径
+
+    Raises:
+        RuntimeError: 所有下载源均失败时抛出
+    """
+    if source is None:
+        source = get_default_source()
+
+    if source not in ("auto", "huggingface", "modelscope"):
+        raise ValueError(
+            f"不支持的下载源: {source}，可选: auto, huggingface, modelscope"
+        )
+
+    sources = []
+    if source == "auto":
+        sources = DEFAULT_SOURCE_PRIORITY.copy()
+    else:
+        sources = [source]
+
+    last_error = None
+
+    for src in sources:
+        try:
+            if src == "huggingface":
+                return _download_from_huggingface(repo_id, local_dir, cache_dir, **kwargs)
+            elif src == "modelscope":
+                return _download_from_modelscope(repo_id, local_dir, cache_dir, **kwargs)
+        except Exception as e:
+            last_error = e
+            logger.warning(f"[{src}] 下载失败: {e}")
+            continue
+
+    raise RuntimeError(
+        f"模型 {repo_id} 下载失败，已尝试源: {sources}。最后错误: {last_error}"
+    )
+
+
+def _download_from_huggingface(
+    repo_id: str,
+    local_dir: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    **kwargs
+) -> str:
+    """从 HuggingFace Hub 下载模型"""
+    _ensure_package("huggingface-hub", "huggingface_hub")
+
+    from huggingface_hub import snapshot_download
+
+    download_kwargs = {"repo_id": repo_id}
+    if local_dir:
+        download_kwargs["local_dir"] = local_dir
+    if cache_dir:
+        download_kwargs["cache_dir"] = cache_dir
+
+    # 透传额外参数（如 resume_download 等）
+    for key in ("resume_download", "local_dir_use_symlinks"):
+        if key in kwargs:
+            download_kwargs[key] = kwargs[key]
+
+    logger.info(f"[HuggingFace] 开始下载模型: {repo_id}")
+    model_path = snapshot_download(**download_kwargs)
+    logger.info(f"[HuggingFace] 模型下载完成: {model_path}")
+    return model_path
+
+
+def _download_from_modelscope(
+    repo_id: str,
+    local_dir: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    **kwargs
+) -> str:
+    """从 ModelScope 下载模型"""
+    _ensure_package("modelscope")
+
+    from modelscope import snapshot_download
+
+    download_kwargs = {"model_id": repo_id}
+    if local_dir:
+        download_kwargs["local_dir"] = local_dir
+    if cache_dir:
+        download_kwargs["cache_dir"] = cache_dir
+
+    for key in ("revision",):
+        if key in kwargs:
+            download_kwargs[key] = kwargs[key]
+
+    logger.info(f"[ModelScope] 开始下载模型: {repo_id}")
+    model_path = snapshot_download(**download_kwargs)
+    logger.info(f"[ModelScope] 模型下载完成: {model_path}")
+    return model_path
+
+
+def check_model_exists(repo_id: str, source: str = "huggingface") -> bool:
+    """
+    检查模型在指定源上是否存在
+
+    Args:
+        repo_id: 模型仓库 ID
+        source: 检查源，"huggingface" 或 "modelscope"
+
+    Returns:
+        是否存在
+    """
+    try:
+        if source == "huggingface":
+            _ensure_package("huggingface-hub", "huggingface_hub")
+            from huggingface_hub import HfApi
+
+            api = HfApi()
+            api.model_info(repo_id=repo_id)
+            return True
+        elif source == "modelscope":
+            _ensure_package("modelscope")
+            from modelscope.hub.api import HubApi
+
+            hub_api = HubApi()
+            hub_api.get_model_info(repo_id)
+            return True
+        else:
+            raise ValueError(f"不支持的源: {source}")
+    except Exception as e:
+        logger.debug(f"[{source}] 模型 {repo_id} 不存在或检查失败: {e}")
+        return False
+
+
+# ------------------------------------------------------------------ #
+# 统一模型下载接口
+# ------------------------------------------------------------------ #
+
+def ensure_model(
+    model_dir: str,
+    repo_ids: str | list[str],
+    marker_file: str | None = None,
+    source_priority: list[str] | None = None,
+    tag: str = "",
+    manual_hint: str = "",
+) -> str:
+    """统一的模型下载接口：先检查本地是否存在，不存在则尝试下载。
+
+    封装了「本地存在性检查 → 多 repo / 多源回退 → 错误提示」的完整流程，
+    各 TTS 引擎只需调用此函数即可完成模型下载。
+
+    Args:
+        model_dir: 模型本地目录绝对路径
+        repo_ids: 模型仓库 ID，可以是单个字符串或列表。
+            列表时按顺序依次尝试（如先 ModelScope 再 HuggingFace）。
+        marker_file: 标记文件名（相对于 model_dir），存在则认为模型已下载完毕。
+            为 None 时检查 model_dir 是否存在且非空。
+        source_priority: 下载源优先级，如 ``["modelscope", "huggingface"]``。
+            为 None 时使用 ``DEFAULT_SOURCE_PRIORITY``。
+        tag: 日志前缀标签，如 ``"[Audio8]"``。
+        manual_hint: 下载失败时附在错误信息里的手动下载提示。
+
+    Returns:
+        模型本地目录路径（与 model_dir 一致）
+
+    Raises:
+        RuntimeError: 所有下载尝试均失败时抛出。
+    """
+    os.makedirs(model_dir, exist_ok=True)
+
+    # ---------- 1. 检查本地是否已存在 ----------
+    if marker_file:
+        marker_path = os.path.join(model_dir, marker_file)
+        if os.path.isfile(marker_path):
+            logger.info(f"{tag} 模型已存在: {model_dir}")
+            return model_dir
+    else:
+        if os.path.isdir(model_dir) and any(os.scandir(model_dir)):
+            logger.info(f"{tag} 模型已存在: {model_dir}")
+            return model_dir
+
+    # ---------- 2. 规范化 repo_ids ----------
+    if isinstance(repo_ids, str):
+        repo_ids = [repo_ids]
+    if not repo_ids:
+        raise ValueError(f"{tag} repo_ids 不能为空")
+
+    # ---------- 3. 规范化 source_priority ----------
+    if source_priority is None:
+        source_priority = DEFAULT_SOURCE_PRIORITY.copy()
+
+    # ---------- 4. 逐 repo 逐源尝试下载 ----------
+    last_error: Exception | None = None
+    for repo_id in repo_ids:
+        try:
+            result = download_model(
+                repo_id=repo_id,
+                local_dir=model_dir,
+                source="auto" if len(source_priority) > 1 else source_priority[0],
+            )
+            logger.info(f"{tag} 模型下载成功: {repo_id} → {result}")
+            return result
+        except Exception as e:
+            last_error = e
+            logger.warning(f"{tag} [{repo_id}] 下载失败: {e}")
+            continue
+
+    # ---------- 5. 全部失败 ----------
+    hint = f"\n{manual_hint}" if manual_hint else ""
+    raise RuntimeError(
+        f"{tag} 模型下载失败，已尝试仓库: {repo_id}。最后错误: {last_error}{hint}"
+    )
+
+
+def ensure_git_repo(
+    repo_dir: str,
+    repo_url: str,
+    tag: str = "",
+) -> str:
+    """确保 Git 仓库已克隆到本地（浅克隆）。
+
+    用于 Audio8 / ZipVoice 等需要运行时仓库的引擎。
+
+    Args:
+        repo_dir: 本地目标目录
+        repo_url: Git 仓库 URL
+        tag: 日志前缀标签
+
+    Returns:
+        repo_dir 路径
+    """
+    if os.path.isdir(repo_dir):
+        logger.info(f"{tag} 仓库已存在: {repo_dir}")
+        return repo_dir
+
+    logger.info(f"{tag} 克隆仓库: {repo_url}")
+    try:
+        subprocess.check_call(
+            ["git", "clone", "--depth", "1", repo_url, repo_dir],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info(f"{tag} 仓库克隆成功: {repo_dir}")
+        return repo_dir
+    except Exception as e:
+        raise RuntimeError(f"{tag} 仓库克隆失败: {e}") from e
