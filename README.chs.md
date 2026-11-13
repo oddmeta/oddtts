@@ -7,7 +7,7 @@
   <a href="https://github.com/oddmeta/oddtts" target="_blank">⭐ GitHub</a> ·
   <a href="https://www.oddmeta.net" target="_blank">🏠 官方网站</a> ·
   <a href="https://minutes.oddmeta.net" target="_blank">🌐 在线演示</a> ·
-  <a href="https://oddmeta.net/docs/oddminutes" target="_blank">📖 文档中心</a>
+  <a href="https://oddmeta.net/docs/oddtts" target="_blank">📖 文档中心</a>
 </p>
 
 <p>
@@ -221,6 +221,7 @@ oddtts/
 |------|------|
 | 微信公众号 | 奥德元 |
 | 微信 | oddmeta |
+| Github | [oddmeta](https://github.com/oddmeta) |
 | 微博 | [oddmeta](https://weibo.com/oddmeta) |
 | Twitter / X | [oddmet](https://x.com/oddmet) |
 

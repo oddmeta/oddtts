@@ -221,6 +221,7 @@ Key configuration options in `oddtts_config.py` (or `~/.config/oddtts/config.jso
 |---------|--------|
 | WeChat Official Account | 奥德元 |
 | WeChat | oddmeta |
+| Github | [oddmeta](https://github.com/oddmeta) |
 | Weibo | [oddmeta](https://weibo.com/oddmeta) |
 | Twitter / X | [oddmet](https://x.com/oddmet) |
 
