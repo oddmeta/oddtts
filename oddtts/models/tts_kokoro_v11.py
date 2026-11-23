@@ -137,11 +137,16 @@ class KokoroAPIV11():
         if self.pipeline_en is None:
             logger.info(f"[响应] 加载管道: 开始创建英文管道...")
             start_time = time.time()
-            self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=self.model)
-            logger.info(f"[响应] 创建英文管道完成 - 耗时: {time.time() - start_time:.3f}秒")
-            
-            # 预加载本地 voice 文件到 pipeline_en.voices 字典，避免重复下载
-            self._preload_local_voices_en()
+            try:
+                self.pipeline_en = KPipeline(lang_code='a', repo_id=self.local_repo_id, model=self.model)
+                logger.info(f"[响应] 创建英文管道完成 - 耗时: {time.time() - start_time:.3f}秒")
+                
+                # 预加载本地 voice 文件到 pipeline_en.voices 字典，避免重复下载
+                self._preload_local_voices_en()
+            except Exception as e:
+                logger.warning(f"[响应] 创建英文管道失败（通常是 en_core_web_sm 未安装导致）: {e}")
+                logger.warning(f"[响应] 英文单词将使用中文管道处理，发音可能不准确。建议执行: python -m spacy download en_core_web_sm")
+                self.pipeline_en = None
 
 
     def _preload_local_voices(self):
