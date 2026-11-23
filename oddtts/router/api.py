@@ -40,21 +40,21 @@ async def get_voices(type: ODDTTS_TYPE):
     return await single_tts_driver.get_voices(type=type)
 
 async def generate_tts_file(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
-    logger.debug(f"[辅助] generate_tts_file调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
+    logger.debug(f"[辅助] generate_tts_file调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}, text: {text}")
     tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
     if single_tts_driver is None:
         return ""
     return await single_tts_driver.generate_tts_file(tts_type=type, text=text, tts_params=tts_params)
 
 async def generate_tts_bytes(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
-    logger.debug(f"[辅助] generate_tts_bytes调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
+    logger.debug(f"[辅助] generate_tts_bytes调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}, text: {text}")
     tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
     if single_tts_driver is None:
         return ""
     return await single_tts_driver.generate_tts_bytes(tts_type=type, text=text, tts_params=tts_params)
 
 async def generate_tts_stream(type: ODDTTS_TYPE, text: str, voice: str, rate: int, volume: int, pitch: int, locale: str = "zh-CN", response_format: str = "wav", prompt_audio_path: str | None = None, prompt_text: str | None = None):
-    logger.debug(f"[辅助] generate_tts_stream调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}")
+    logger.debug(f"[辅助] generate_tts_stream调用 - 类型: {type}, 文本长度: {len(text)}, 语音: {voice}, 格式: {response_format}, text: {text}")
     if single_tts_driver is None:
         return
     tts_params = TTSParams(voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
@@ -126,7 +126,7 @@ def api_tts_file():
     locale = data.get("locale", "zh-CN")
     response_format = data.get("response_format", "wav")
     
-    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
+    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}, text: {text}")
     
     prompt_audio_path = data.get("prompt_audio_path")
     prompt_text = data.get("prompt_text")
@@ -187,7 +187,7 @@ def api_tts_base64():
     locale = data.get("locale", "zh-CN")
     response_format = data.get("response_format", "wav")
     
-    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
+    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}, text: {text}")
     
     prompt_audio_path = data.get("prompt_audio_path")
     prompt_text = data.get("prompt_text")
@@ -232,7 +232,7 @@ def api_tts_stream():
     prompt_audio_path = data.get("prompt_audio_path")
     prompt_text = data.get("prompt_text")
     
-    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}")
+    logger.info(f"[参数] 文本长度: {len(text) if text else 0}, 语音: {voice}, 语速: {rate}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}, text: {text}")
     
     if not text:
         elapsed_time = time.time() - start_time
@@ -412,7 +412,7 @@ def openai_create_speech():
     prompt_audio_path = data.get("prompt_audio_path")
     prompt_text = data.get("prompt_text")
     
-    logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 格式: {response_format}")
+    logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 格式: {response_format}, text: {text}")
     
     generation_start_time = time.time()
     
