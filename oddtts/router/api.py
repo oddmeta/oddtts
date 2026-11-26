@@ -63,6 +63,11 @@ async def generate_tts_stream(type: ODDTTS_TYPE, text: str, voice: str, rate: in
 
 
 
+# robots.txt — 禁止搜索引擎抓取
+@bp_api.route('/robots.txt')
+def robots_txt():
+    return Response("User-agent: *\nDisallow: /", mimetype='text/plain')
+
 # 健康检查
 @bp_api.route('/oddtts/health')
 def health_check():
