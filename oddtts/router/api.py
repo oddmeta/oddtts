@@ -1,5 +1,6 @@
 import asyncio
 import io
+import json
 import os
 import time
 import tempfile
@@ -94,6 +95,52 @@ def api_get_voices():
     logger.info(f"[响应] 获取语音列表完成 - 语音数量: {len(voices_list)}, 耗时: {elapsed_time:.3f}秒")
     
     return jsonify(voices_list)
+
+# 1.5 OpenAI兼容 - 获取语音列表（LiveTalking 等客户端使用 /v1/audio/voices 路径）
+@bp_api.route('/v1/audio/voices', methods=['GET'])
+def openai_list_voices():
+    start_time = time.time()
+    logger.info("[请求] OpenAI兼容语音列表接口 (/v1/audio/voices)")
+
+    type = config.oddtts_cfg["tts_type"]
+    voices_list = asyncio.run(get_voices(type))
+
+    # LiveTalking 期望格式: { voices: ["name1", "name2"], uploaded_voices: [{name, ref_text, created_at}] }
+    preset_names = []
+    for v in voices_list:
+        name = v.get("short_name") or v.get("name")
+        if name and not v.get("is_cloned"):
+            preset_names.append(name)
+
+    # 去重并保持顺序
+    seen = set()
+    unique_presets = []
+    for name in preset_names:
+        if name not in seen:
+            seen.add(name)
+            unique_presets.append(name)
+
+    # 获取克隆音色作为 uploaded_voices
+    uploaded_voices = []
+    try:
+        manager = get_voice_clone_manager()
+        for v in manager.list_voices():
+            uploaded_voices.append({
+                "name": v.get("short_name") or v.get("name"),
+                "speaker_description": v.get("display_name", ""),
+                "ref_text": v.get("prompt_text") or "",
+                "created_at": v.get("created_at", ""),
+            })
+    except Exception as e:
+        logger.warning(f"[响应] 获取克隆音色列表失败: {e}")
+
+    elapsed_time = time.time() - start_time
+    logger.info(f"[响应] OpenAI兼容语音列表完成 - 预设: {len(unique_presets)}, 克隆: {len(uploaded_voices)}, 耗时: {elapsed_time:.3f}秒")
+
+    return jsonify({
+        "voices": unique_presets,
+        "uploaded_voices": uploaded_voices,
+    })
 
 # 2. 获取特定语音详情API
 @bp_api.route('/v1/audio/voice/list/<voice_name>', methods=['GET'])
@@ -413,18 +460,32 @@ def openai_create_speech():
     
     rate = int((speed - 1.0) * 50)
     locale = data.get("locale", "zh-CN")
-    type = config.oddtts_cfg["tts_type"]
+
+    # 支持请求级 model 参数路由
+    model_name = data.get("model")
+    if model_name:
+        try:
+            type = single_tts_driver.resolve_model_name(model_name)
+        except ValueError as e:
+            elapsed_time = time.time() - start_time
+            logger.warning(f"[响应] model参数错误 - 值: {model_name}, 错误: {e}, 耗时: {elapsed_time:.3f}秒")
+            return jsonify({"error": str(e)}), 400
+    else:
+        type = config.oddtts_cfg["tts_type"]
+
+    volume = int(data.get("volume", 0))
+    pitch = int(data.get("pitch", 0))
     prompt_audio_path = data.get("prompt_audio_path")
     prompt_text = data.get("prompt_text")
-    
-    logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 格式: {response_format}, text: {text}")
+
+    logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}, model: {model_name or type.name}, text: {text}")
     
     generation_start_time = time.time()
     
     async def async_generate():
         audio_buffer = io.BytesIO()
         try:
-            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=0, pitch=0, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text):
+            async for chunk in generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text):
                 audio_buffer.write(chunk)
                 yield chunk
             
@@ -478,6 +539,165 @@ def openai_create_speech():
         elapsed_time = time.time() - start_time
         logger.error(f"[错误] OpenAI speech接口响应失败 - 错误信息: {str(e)}, 总耗时: {elapsed_time:.3f}秒")
         return jsonify({"error": str(e)}), 500
+
+# =============================================================================
+# WebSocket 实时语音合成
+# =============================================================================
+
+def websocket_speech(ws):
+    """WebSocket 实时语音合成接口。
+
+    客户端先发送 JSON 文本帧（参数同 /v1/audio/speech），
+    服务端依次返回：
+      - 文本帧: {"type": "header", "format": "wav"}
+      - 二进制帧: 音频数据 chunk
+      - 文本帧: {"type": "end", "generation_time": 1.234}
+      - 若出错: {"type": "error", "message": "..."}
+    """
+    start_time = time.time()
+    logger.info("[请求] WebSocket speech接口")
+
+    try:
+        # 接收客户端参数
+        raw = ws.receive()
+        if not raw:
+            ws.send(json.dumps({"type": "error", "message": "未收到参数"}))
+            return
+
+        try:
+            data = json.loads(raw) if isinstance(raw, str) else json.loads(raw.decode('utf-8'))
+        except Exception:
+            ws.send(json.dumps({"type": "error", "message": "参数必须是JSON格式"}))
+            return
+
+        text = data.get("input")
+        if not text:
+            ws.send(json.dumps({"type": "error", "message": "缺少必需参数: input"}))
+            return
+
+        voice = data.get("voice")
+        if not voice:
+            if voice_options:
+                voice = voice_options[0]
+            else:
+                ws.send(json.dumps({"type": "error", "message": "无可用音色"}))
+                return
+
+        speed = data.get("speed", 1.0)
+        if speed < 0.25 or speed > 4.0:
+            ws.send(json.dumps({"type": "error", "message": "speed参数必须在0.25-4.0之间"}))
+            return
+
+        rate = int((speed - 1.0) * 50)
+        locale = data.get("locale", "zh-CN")
+
+        # model 参数路由
+        model_name = data.get("model")
+        if model_name:
+            try:
+                type = single_tts_driver.resolve_model_name(model_name)
+            except ValueError as e:
+                ws.send(json.dumps({"type": "error", "message": str(e)}))
+                return
+        else:
+            type = config.oddtts_cfg["tts_type"]
+
+        volume = int(data.get("volume", 0))
+        pitch = int(data.get("pitch", 0))
+        response_format = data.get("response_format", "wav")
+        prompt_audio_path = data.get("prompt_audio_path")
+        prompt_text = data.get("prompt_text")
+
+        logger.info(f"[参数] 文本长度: {len(text)}, 语音: {voice}, 语速: {speed}, 音量: {volume}, 音调: {pitch}, 格式: {response_format}, model: {model_name or type.name}, text: {text}")
+
+        # 发送 header
+        ws.send(json.dumps({"type": "header", "format": response_format}))
+
+        # 运行异步生成器
+        generation_start_time = time.time()
+        total_bytes = 0
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            async_gen = generate_tts_stream(type=type, text=text, voice=voice, rate=rate, volume=volume, pitch=pitch, locale=locale, response_format=response_format, prompt_audio_path=prompt_audio_path, prompt_text=prompt_text)
+            while True:
+                try:
+                    chunk = loop.run_until_complete(async_gen.__anext__())
+                    ws.send(chunk)
+                    total_bytes += len(chunk)
+                except StopAsyncIteration:
+                    break
+                except Exception as e:
+                    ws.send(json.dumps({"type": "error", "message": str(e)}))
+                    return
+        finally:
+            loop.close()
+
+        generation_time = time.time() - generation_start_time
+
+        # 发送结束标记
+        ws.send(json.dumps({"type": "end", "generation_time": round(generation_time, 3), "total_bytes": total_bytes}))
+
+        elapsed_time = time.time() - start_time
+        logger.info(f"[响应] WebSocket speech完成 - 生成耗时: {generation_time:.3f}秒, 总字节: {total_bytes}, 总耗时: {elapsed_time:.3f}秒")
+
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"[错误] WebSocket speech失败: {e}, 耗时: {elapsed_time:.3f}秒")
+        try:
+            ws.send(json.dumps({"type": "error", "message": str(e)}))
+        except Exception:
+            pass
+
+# 已加载模型列表 API
+@bp_api.route('/api/models/loaded', methods=['GET'])
+def api_list_loaded_models():
+    start_time = time.time()
+    logger.info("[请求] 获取已加载模型列表")
+
+    try:
+        models = single_tts_driver.list_loaded_models()
+        elapsed_time = time.time() - start_time
+        logger.info(f"[响应] 已加载模型列表 - 数量: {len(models)}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({
+            "success": True,
+            "count": len(models),
+            "models": models
+        })
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"[错误] 获取已加载模型列表失败: {e}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 卸载模型 API
+@bp_api.route('/api/models/unload', methods=['POST'])
+def api_unload_model():
+    start_time = time.time()
+    logger.info("[请求] 卸载模型接口")
+
+    try:
+        data = request.json or {}
+        model_name = data.get("model")
+        if not model_name:
+            return jsonify({"success": False, "error": "缺少 model 参数"}), 400
+
+        single_tts_driver.unload_model(model_name)
+
+        elapsed_time = time.time() - start_time
+        logger.info(f"[响应] 模型卸载成功 - model: {model_name}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({
+            "success": True,
+            "message": f"模型 {model_name} 已卸载"
+        })
+    except ValueError as e:
+        elapsed_time = time.time() - start_time
+        logger.warning(f"[响应] 卸载模型参数错误 - {e}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        elapsed_time = time.time() - start_time
+        logger.error(f"[错误] 卸载模型失败: {e}, 耗时: {elapsed_time:.3f}秒")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # 配置管理 API
 @bp_api.route('/api/config/tts-types', methods=['GET'])

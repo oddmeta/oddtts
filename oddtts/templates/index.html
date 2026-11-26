@@ -168,7 +168,26 @@
                             <option value="wav">wav</option>
                         </select>
                     </div>
-                    
+
+                    <div class="form-group">
+                        <label>模型 (model)</label>
+                        <select id="openai-model">
+                            <option value="">使用默认配置</option>
+                        </select>
+                        <p style="color:#888;font-size:12px;margin-top:4px;">留空则使用全局默认TTS引擎，指定后该请求将动态切换引擎</p>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-item">
+                            <label>音量 (volume): <span class="slider-value" id="openai-volume-value">0</span>%</label>
+                            <input type="range" id="openai-volume" min="-50" max="50" value="0" step="5">
+                        </div>
+                        <div class="slider-item">
+                            <label>音调 (pitch): <span class="slider-value" id="openai-pitch-value">0</span>Hz</label>
+                            <input type="range" id="openai-pitch" min="-50" max="50" value="0" step="5">
+                        </div>
+                    </div>
+
                     <button class="btn" id="btn-openai">生成语音</button>
                 </div>
                 
@@ -177,6 +196,17 @@
                     
                     <div class="audio-player" id="openai-player" style="display:none">
                         <audio id="openai-audio" controls></audio>
+                    </div>
+
+                    <div class="api-card" style="margin-top:20px;">
+                        <h3>WebSocket 实时合成</h3>
+                        <p style="color:#888;font-size:12px;margin-bottom:8px;">通过 WebSocket 连接实时收发音频数据（协议: ws/v1/audio/speech/ws）</p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn" id="btn-ws-connect" style="padding:8px 16px;font-size:13px;">连接并合成</button>
+                            <button class="btn" id="btn-ws-disconnect" style="padding:8px 16px;font-size:13px;background:#ff6b6b;display:none;">断开</button>
+                        </div>
+                        <div id="ws-status" style="margin-top:8px;color:#888;font-size:12px;">未连接</div>
+                        <audio id="ws-audio" controls style="display:none;margin-top:12px;width:100%;"></audio>
                     </div>
                 </div>
             </div>
@@ -325,6 +355,16 @@
                     <code>POST /v1/audio/speech</code>
                     <p>OpenAI兼容 - 生成语音</p>
                 </div>
+                <div class="api-card">
+                    <h3>获取已加载模型列表</h3>
+                    <code>GET /api/models/loaded</code>
+                    <p>查询当前内存中已缓存/加载的TTS引擎列表</p>
+                </div>
+                <div class="api-card">
+                    <h3>卸载模型</h3>
+                    <code>POST /api/models/unload</code>
+                    <p>显式卸载指定模型并释放内存，body: {"model": "oddtts-kokoro-v1-1"}</p>
+                </div>
             </div>
             <br>
             <div class="api-card">
@@ -381,6 +421,14 @@
                             加载中...
                         </div>
                     </div>
+
+                    <div class="api-card" style="margin-top:20px;">
+                        <h3>已加载模型</h3>
+                        <div id="loaded-models-list" style="color:#aaa;font-size:13px;line-height:1.6;">
+                            <p>加载中...</p>
+                        </div>
+                        <button class="btn" id="btn-refresh-loaded" style="margin-top:12px;padding:8px 16px;font-size:13px;">刷新列表</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -411,6 +459,11 @@
         });
         document.getElementById('openai-speed').addEventListener('input', e => {
             document.getElementById('speed-value').textContent = e.target.value;
+        });
+        ['volume', 'pitch'].forEach(id => {
+            document.getElementById('openai-' + id).addEventListener('input', e => {
+                document.getElementById('openai-' + id + '-value').textContent = e.target.value;
+            });
         });
         
         // 加载语音列表
@@ -635,13 +688,20 @@
             document.getElementById('btn-openai').disabled = true;
             
             try {
-                const res = await apiRequest('/v1/audio/speech', {
+                const payload = {
                     input: text,
                     voice: voice,
                     speed: parseFloat(document.getElementById('openai-speed').value),
                     locale: "zh-CN",
-                    response_format: document.getElementById('openai-format').value
-                });
+                    response_format: document.getElementById('openai-format').value,
+                    volume: parseInt(document.getElementById('openai-volume').value),
+                    pitch: parseInt(document.getElementById('openai-pitch').value)
+                };
+                const model = document.getElementById('openai-model').value;
+                if (model) {
+                    payload.model = model;
+                }
+                const res = await apiRequest('/v1/audio/speech', payload);
                 
                 if(res.ok) {
                     showStatus('openai-status', '生成成功!', 'success');
@@ -659,7 +719,88 @@
             
             document.getElementById('btn-openai').disabled = false;
         });
-        
+
+        // WebSocket 实时合成
+        let ws = null;
+        let wsChunks = [];
+
+        document.getElementById('btn-ws-connect').addEventListener('click', () => {
+            const text = document.getElementById('openai-text').value;
+            const voice = document.getElementById('openai-voice').value;
+            if (!text || !voice) { alert('请输入文本并选择语音'); return; }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/v1/audio/speech/ws`;
+
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+            wsChunks = [];
+
+            ws.onopen = () => {
+                document.getElementById('btn-ws-connect').style.display = 'none';
+                document.getElementById('btn-ws-disconnect').style.display = 'inline-block';
+                const statusEl = document.getElementById('ws-status');
+                statusEl.textContent = '已连接，发送参数...';
+                statusEl.style.color = '#00ff88';
+                document.getElementById('ws-audio').style.display = 'none';
+
+                const payload = {
+                    input: text,
+                    voice: voice,
+                    speed: parseFloat(document.getElementById('openai-speed').value),
+                    locale: "zh-CN",
+                    response_format: document.getElementById('openai-format').value,
+                    volume: parseInt(document.getElementById('openai-volume').value),
+                    pitch: parseInt(document.getElementById('openai-pitch').value)
+                };
+                const model = document.getElementById('openai-model').value;
+                if (model) payload.model = model;
+                ws.send(JSON.stringify(payload));
+            };
+
+            ws.onmessage = (event) => {
+                const statusEl = document.getElementById('ws-status');
+                if (typeof event.data === 'string') {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'header') {
+                        statusEl.textContent = '接收音频流...';
+                    } else if (msg.type === 'end') {
+                        statusEl.textContent = '合成完成 (' + (msg.generation_time || '?.???') + 's, ' + (msg.total_bytes || 0) + ' bytes)';
+                        // 拼接所有 chunk 并播放
+                        const format = document.getElementById('openai-format').value;
+                        const mimeType = format === 'mp3' ? 'audio/mpeg' : 'audio/wav';
+                        const blob = new Blob(wsChunks, { type: mimeType });
+                        const url = URL.createObjectURL(blob);
+                        document.getElementById('ws-audio').src = url;
+                        document.getElementById('ws-audio').style.display = 'block';
+                        ws.close();
+                    } else if (msg.type === 'error') {
+                        statusEl.textContent = '错误: ' + msg.message;
+                        statusEl.style.color = '#ff4444';
+                        ws.close();
+                    }
+                } else {
+                    wsChunks.push(new Uint8Array(event.data));
+                }
+            };
+
+            ws.onerror = () => {
+                const statusEl = document.getElementById('ws-status');
+                statusEl.textContent = 'WebSocket 错误';
+                statusEl.style.color = '#ff4444';
+            };
+
+            ws.onclose = () => {
+                document.getElementById('btn-ws-connect').style.display = 'inline-block';
+                document.getElementById('btn-ws-disconnect').style.display = 'none';
+                ws = null;
+            };
+        });
+
+        document.getElementById('btn-ws-disconnect').addEventListener('click', () => {
+            if (ws) ws.close();
+        });
+
         // 模型配置管理
         let ttsTypes = [];
         let currentTtsType = null;
@@ -688,6 +829,19 @@
                         option.selected = true;
                     }
                     select.appendChild(option);
+                });
+
+                // 填充 OpenAI model 下拉框
+                const modelSelect = document.getElementById('openai-model');
+                modelSelect.innerHTML = '<option value="">使用默认配置</option>';
+                ttsTypes.forEach(type => {
+                    if (type.enable) {
+                        const modelKey = 'oddtts-' + type.name.toLowerCase().replace('oddtts_', '').replace(/_/g, '-');
+                        const option = document.createElement('option');
+                        option.value = modelKey;
+                        option.textContent = type.name + ' (' + modelKey + ')';
+                        modelSelect.appendChild(option);
+                    }
                 });
                 
                 // 显示类型列表
@@ -734,7 +888,65 @@
         
         // 监听TTS类型选择变化
         document.getElementById('tts-type-select').addEventListener('change', updateTtsTypeDescription);
-        
+
+        // 加载已加载模型列表
+        async function loadLoadedModels() {
+            try {
+                const res = await fetch('/api/models/loaded');
+                const data = await res.json();
+                const container = document.getElementById('loaded-models-list');
+
+                if (!data.success || !data.models || data.models.length === 0) {
+                    container.innerHTML = '<p style="color:#888;">暂无已加载的模型</p>';
+                    return;
+                }
+
+                container.innerHTML = data.models.map(m => `
+                    <div style="margin-bottom:8px;padding:8px;background:#2a2a4a;border-radius:4px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <strong style="color:#00d4ff;">${m.model_name}</strong>
+                            <span style="color:${m.model_status === 'loaded' ? '#00ff88' : '#ffcc00'};font-size:12px;">
+                                ${m.model_status === 'loaded' ? '● 已加载' : '○ 已初始化'}
+                            </span>
+                        </div>
+                        <div style="margin-top:4px;color:#aaa;font-size:12px;">${m.description}</div>
+                        <button class="btn" style="margin-top:6px;padding:6px 12px;font-size:12px;background:#ff6b6b;"
+                            onclick="unloadModel('${m.model_name}')">卸载</button>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error('加载已加载模型失败:', e);
+                document.getElementById('loaded-models-list').innerHTML = '<p style="color:#ff6b6b;">加载失败: ' + e.message + '</p>';
+            }
+        }
+
+        // 卸载模型
+        window.unloadModel = async function(modelName) {
+            if (!confirm(`确定要卸载模型 "${modelName}" 吗？卸载后将释放内存，下次使用需重新加载。`)) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/models/unload', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ model: modelName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showStatus('config-status', `模型 ${modelName} 已卸载`, 'success');
+                    loadLoadedModels();
+                    loadVoices();
+                } else {
+                    showStatus('config-status', '卸载失败: ' + (data.error || '未知错误'), 'error');
+                }
+            } catch(e) {
+                showStatus('config-status', '卸载失败: ' + e.message, 'error');
+            }
+        };
+
+        // 刷新已加载模型列表
+        document.getElementById('btn-refresh-loaded').addEventListener('click', loadLoadedModels);
+
         // 保存配置
         document.getElementById('btn-save-config').addEventListener('click', async () => {
             const select = document.getElementById('tts-type-select');
@@ -995,7 +1207,10 @@
         
         // 初始化
         loadVoices();
-        loadTtsTypes().then(() => loadClonedVoices());
+        loadTtsTypes().then(() => {
+            loadClonedVoices();
+            loadLoadedModels();
+        });
     </script>
 </body>
 </html>

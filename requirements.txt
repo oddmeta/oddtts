@@ -1,5 +1,6 @@
 flask>=2.0.0
 flask-cors>=3.0.0
+flask-sock>=0.7.0
 edge-tts
 pydub>=0.25.1
 kokoro

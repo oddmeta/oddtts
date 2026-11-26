@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oddtts"
-version = "2.1.17"
+version = "2.2.18"
 description = "Multi-Engine TTS Speech Synthesis API Server with OpenAI-Compatible Endpoints, Voice Cloning, and Web UI"
 readme = "README.md"
 
@@ -15,12 +15,14 @@ authors = [
 classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.12"
 dependencies = [
     "flask>=2.0.0",
     "flask-cors>=3.0.0",
+    "flask-sock>=0.7.0",
     "edge-tts",
     "pydub>=0.25.1",
     "kokoro",
